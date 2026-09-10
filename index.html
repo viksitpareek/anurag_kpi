@@ -1,0 +1,1314 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Anurag Mishra - Account Deal KPI</title>
+
+    <script src="https://live.zwidgets.com/js-sdk/1.5/ZohoEmbededAppSDK.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f5f7fa;
+            color: #222;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .header h2 {
+            margin: 0 0 6px 0;
+        }
+
+        .header p {
+            margin: 0;
+            color: #666;
+        }
+
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .kpi {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .kpi-title {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .deal-value {
+            color: #188038;
+        }
+
+        .no-deal-value {
+            color: #d93025;
+        }
+
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #searchBox {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .filter-btn {
+            padding: 10px 16px;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .filter-btn:hover {
+            background: #f1f3f4;
+        }
+
+        .filter-btn.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f1f3f4;
+            padding: 13px;
+            text-align: left;
+            font-size: 13px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        td {
+            padding: 13px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .account-link {
+            color: #1a73e8;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .account-link:hover {
+            text-decoration: underline;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-deal {
+            background: #e6f4ea;
+            color: #188038;
+        }
+
+        .status-no-deal {
+            background: #fce8e6;
+            color: #d93025;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fce8e6;
+            color: #b3261e;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+
+        .debug {
+            margin-top: 20px;
+            background: #202124;
+            color: #e8eaed;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: Consolas, monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .result-count {
+            padding: 12px 15px;
+            color: #666;
+            font-size: 13px;
+            border-bottom: 1px solid #eee;
+        }
+
+        @media (max-width: 900px) {
+            .kpi-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .kpi-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h2>Anurag Mishra - FY 2026-27 Deal Status</h2>
+        <p>
+            Account Owner: <strong>Anurag Mishra</strong>
+            &nbsp; | &nbsp;
+            Deal Owner: <strong>Anurag Mishra</strong>
+            &nbsp; | &nbsp;
+            Deal Year: <strong>2026-2027</strong>
+        </p>
+    </div>
+
+    <div id="errorBox" class="error" style="display:none;"></div>
+
+    <div class="kpi-container">
+
+        <div class="kpi">
+            <div class="kpi-title">No Deal Accounts</div>
+            <div id="noDealCount" class="kpi-value no-deal-value">-</div>
+        </div>
+
+        <div class="kpi">
+            <div class="kpi-title">Total Accounts</div>
+            <div id="totalAccounts" class="kpi-value">-</div>
+        </div>
+
+        <div class="kpi">
+            <div class="kpi-title">With FY 2026-27 Deal</div>
+            <div id="dealAccounts" class="kpi-value deal-value">-</div>
+        </div>
+
+        <div class="kpi">
+            <div class="kpi-title">No FY 2026-27 Deal</div>
+            <div id="noDealAccounts" class="kpi-value no-deal-value">-</div>
+        </div>
+
+    </div>
+
+    <div class="controls">
+
+        <input
+            type="text"
+            id="searchBox"
+            placeholder="Search account name..."
+            onkeyup="applyFilters()"
+        >
+
+        <button
+            id="filterAll"
+            class="filter-btn active"
+            onclick="setFilter('ALL')">
+            All
+        </button>
+
+        <button
+            id="filterDeal"
+            class="filter-btn"
+            onclick="setFilter('DEAL')">
+            Deal
+        </button>
+
+        <button
+            id="filterNoDeal"
+            class="filter-btn"
+            onclick="setFilter('NO DEAL')">
+            No Deal
+        </button>
+
+    </div>
+
+    <div class="table-container">
+
+        <div id="resultCount" class="result-count">
+            Loading...
+        </div>
+
+        <div id="tableLoading" class="loading">
+            Loading accounts and deals...
+        </div>
+
+        <table id="accountTable" style="display:none;">
+
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Account Name</th>
+                    <th>Account ID</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+
+            <tbody id="accountTableBody"></tbody>
+
+        </table>
+
+    </div>
+
+    <div id="debugBox" class="debug" style="display:none;"></div>
+
+</div>
+
+
+<script>
+
+    /*
+     ============================================================
+     CONFIGURATION
+     ============================================================
+    */
+
+    const ACCOUNT_OWNER = "Anurag Mishra";
+
+    const DEAL_OWNER = "Anurag Mishra";
+
+    /*
+       IMPORTANT:
+       The API name of the Deal Year field is Year2.
+    */
+    const DEAL_YEAR_FIELD = "Year2";
+
+    const TARGET_DEAL_YEAR = "2026-2027";
+
+
+    /*
+     ============================================================
+     GLOBAL DATA
+     ============================================================
+    */
+
+    let allAccounts = [];
+
+    let dealAccountIds = new Set();
+
+    let currentFilter = "ALL";
+
+
+    /*
+     ============================================================
+     SHOW ERROR
+     ============================================================
+    */
+
+    function showError(message) {
+
+        const box = document.getElementById("errorBox");
+
+        box.style.display = "block";
+
+        box.innerText = message;
+    }
+
+
+    /*
+     ============================================================
+     FETCH ANURAG ACCOUNTS
+     ============================================================
+    */
+
+    async function fetchAnuragAccounts() {
+
+        let accounts = [];
+
+        let page = 1;
+
+        while (true) {
+
+            console.log("Fetching Accounts page:", page);
+
+            const response = await ZOHO.CRM.API.searchRecord({
+                Entity: "Accounts",
+                Type: "criteria",
+                Query: "(Owner.name:equals:" + ACCOUNT_OWNER + ")",
+                page: page,
+                per_page: 200
+            });
+
+            console.log("Accounts response page", page, response);
+
+            if (!response || !response.data) {
+                break;
+            }
+
+            accounts = accounts.concat(response.data);
+
+            if (
+                !response.info ||
+                response.info.more_records !== true
+            ) {
+                break;
+            }
+
+            page++;
+
+            if (page > 100) {
+                console.warn("Account pagination stopped at 100 pages.");
+                break;
+            }
+        }
+
+
+        /*
+         Remove duplicate Account IDs
+        */
+
+        const uniqueAccounts = new Map();
+
+        accounts.forEach(account => {
+
+            if (!account || !account.id) {
+                return;
+            }
+
+            uniqueAccounts.set(
+                String(account.id),
+                account
+            );
+
+        });
+
+
+        return Array.from(uniqueAccounts.values());
+    }
+
+
+    /*
+     ============================================================
+     FETCH DEALS
+     ============================================================
+    */
+
+    async function fetchDeals() {
+
+        let deals = [];
+
+        let page = 1;
+
+        while (true) {
+
+            console.log("Fetching Deals page:", page);
+
+            const response = await ZOHO.CRM.API.getAllRecords({
+                Entity: "Deals",
+                sort_order: "desc",
+                sort_by: "Created_Time",
+                page: page,
+                per_page: 200
+            });
+
+            console.log("Deals response page", page, response);
+
+            if (!response || !response.data) {
+                break;
+            }
+
+            deals = deals.concat(response.data);
+
+
+            /*
+             Check pagination.
+            */
+
+            if (
+                !response.info ||
+                response.info.more_records !== true
+            ) {
+                break;
+            }
+
+            page++;
+
+            if (page > 100) {
+                console.warn("Deal pagination stopped at 100 pages.");
+                break;
+            }
+        }
+
+
+        return deals;
+    }
+
+
+    /*
+     ============================================================
+     CHECK TARGET YEAR
+     ============================================================
+    */
+
+    function isTargetYearDeal(deal) {
+
+        if (!deal) {
+            return false;
+        }
+
+        const yearValue = deal[DEAL_YEAR_FIELD];
+
+        if (
+            yearValue === null ||
+            yearValue === undefined
+        ) {
+            return false;
+        }
+
+        const year = String(yearValue).trim();
+
+        return year === TARGET_DEAL_YEAR;
+    }
+
+
+    /*
+     ============================================================
+     CHECK DEAL OWNER
+     ============================================================
+    */
+
+    function isAnuragDeal(deal) {
+
+        if (!deal || !deal.Owner) {
+            return false;
+        }
+
+        const ownerName = deal.Owner.name;
+
+        if (!ownerName) {
+            return false;
+        }
+
+        return String(ownerName).trim().toLowerCase()
+            === DEAL_OWNER.trim().toLowerCase();
+    }
+
+
+    /*
+     ============================================================
+     BUILD UNIQUE DEAL ACCOUNT SET
+     ============================================================
+    */
+
+    function buildDealAccountSet(
+        deals,
+        anuragAccountIds
+    ) {
+
+        const result = new Set();
+
+        let ownerDeals = 0;
+
+        let ownerYearDeals = 0;
+
+        let ownerYearDealsWithAccount = 0;
+
+        let matchingAccounts = 0;
+
+
+        deals.forEach(deal => {
+
+            if (!deal) {
+                return;
+            }
+
+
+            /*
+             STEP 1
+             Deal Owner must be Anurag Mishra
+            */
+
+            if (!isAnuragDeal(deal)) {
+                return;
+            }
+
+            ownerDeals++;
+
+
+            /*
+             STEP 2
+             Deal Year must be 2026-2027
+            */
+
+            if (!isTargetYearDeal(deal)) {
+                return;
+            }
+
+            ownerYearDeals++;
+
+
+            /*
+             STEP 3
+             Deal must have Account_Name
+            */
+
+            if (
+                !deal.Account_Name ||
+                !deal.Account_Name.id
+            ) {
+                return;
+            }
+
+            ownerYearDealsWithAccount++;
+
+
+            /*
+             STEP 4
+             Get Account ID from Deal.Account_Name.id
+            */
+
+            const accountId =
+                String(deal.Account_Name.id);
+
+
+            /*
+             STEP 5
+             Make sure this Account belongs
+             to Anurag Mishra.
+            */
+
+            if (!anuragAccountIds.has(accountId)) {
+                return;
+            }
+
+            matchingAccounts++;
+
+
+            /*
+             STEP 6
+             Add to Set.
+             Therefore multiple deals for the
+             same account count only once.
+            */
+
+            result.add(accountId);
+
+        });
+
+
+        return {
+            set: result,
+
+            ownerDeals: ownerDeals,
+
+            ownerYearDeals: ownerYearDeals,
+
+            ownerYearDealsWithAccount:
+                ownerYearDealsWithAccount,
+
+            matchingAccounts: matchingAccounts
+        };
+    }
+
+
+    /*
+     ============================================================
+     RENDER KPI
+     ============================================================
+    */
+
+    function renderKPI() {
+
+        const totalAccounts =
+            allAccounts.length;
+
+        const withDeal =
+            dealAccountIds.size;
+
+        const noDeal =
+            totalAccounts - withDeal;
+
+
+        /*
+         IMPORTANT:
+         These values are intentionally NOT swapped.
+        */
+
+        document.getElementById(
+            "totalAccounts"
+        ).innerText = totalAccounts;
+
+
+        document.getElementById(
+            "dealAccounts"
+        ).innerText = withDeal;
+
+
+        document.getElementById(
+            "noDealAccounts"
+        ).innerText = noDeal;
+
+
+        document.getElementById(
+            "noDealCount"
+        ).innerText = noDeal;
+
+    }
+
+
+    /*
+     ============================================================
+     RENDER TABLE
+     ============================================================
+    */
+
+    function renderTable() {
+
+        const tbody =
+            document.getElementById(
+                "accountTableBody"
+            );
+
+        tbody.innerHTML = "";
+
+
+        const searchText =
+            document.getElementById(
+                "searchBox"
+            ).value
+            .trim()
+            .toLowerCase();
+
+
+        let filteredAccounts =
+            allAccounts.filter(account => {
+
+                const accountName =
+                    account.Account_Name ||
+                    "Unnamed Account";
+
+
+                const accountId =
+                    String(account.id);
+
+
+                const hasDeal =
+                    dealAccountIds.has(accountId);
+
+
+                const status =
+                    hasDeal
+                    ? "DEAL"
+                    : "NO DEAL";
+
+
+                /*
+                 Filter by status
+                */
+
+                if (
+                    currentFilter !== "ALL" &&
+                    status !== currentFilter
+                ) {
+                    return false;
+                }
+
+
+                /*
+                 Filter by search
+                */
+
+                if (searchText) {
+
+                    const matchesName =
+                        accountName
+                            .toLowerCase()
+                            .includes(searchText);
+
+                    const matchesId =
+                        accountId
+                            .toLowerCase()
+                            .includes(searchText);
+
+                    if (
+                        !matchesName &&
+                        !matchesId
+                    ) {
+                        return false;
+                    }
+                }
+
+
+                return true;
+
+            });
+
+
+        /*
+         Sort alphabetically
+        */
+
+        filteredAccounts.sort((a, b) => {
+
+            const nameA =
+                (a.Account_Name || "").toLowerCase();
+
+            const nameB =
+                (b.Account_Name || "").toLowerCase();
+
+            return nameA.localeCompare(nameB);
+
+        });
+
+
+        /*
+         Update result count
+        */
+
+        document.getElementById(
+            "resultCount"
+        ).innerText =
+            "Showing " +
+            filteredAccounts.length +
+            " of " +
+            allAccounts.length +
+            " accounts";
+
+
+        /*
+         Build table
+        */
+
+        filteredAccounts.forEach(
+            (account, index) => {
+
+                const accountId =
+                    String(account.id);
+
+                const accountName =
+                    account.Account_Name ||
+                    "Unnamed Account";
+
+                const hasDeal =
+                    dealAccountIds.has(accountId);
+
+                const status =
+                    hasDeal
+                    ? "DEAL"
+                    : "NO DEAL";
+
+
+                const tr =
+                    document.createElement("tr");
+
+
+                /*
+                 Number
+                */
+
+                const numberTd =
+                    document.createElement("td");
+
+                numberTd.innerText =
+                    index + 1;
+
+
+                /*
+                 Account Name
+                */
+
+                const nameTd =
+                    document.createElement("td");
+
+
+                const link =
+                    document.createElement("span");
+
+                link.className =
+                    "account-link";
+
+                link.innerText =
+                    accountName;
+
+
+                link.onclick = function() {
+
+                    ZOHO.CRM.UI.Record.open({
+                        Entity: "Accounts",
+                        RecordID: accountId
+                    });
+
+                };
+
+
+                nameTd.appendChild(link);
+
+
+                /*
+                 Account ID
+                */
+
+                const idTd =
+                    document.createElement("td");
+
+                idTd.innerText =
+                    accountId;
+
+
+                /*
+                 Status
+                */
+
+                const statusTd =
+                    document.createElement("td");
+
+
+                const statusSpan =
+                    document.createElement("span");
+
+                statusSpan.className =
+                    hasDeal
+                    ? "status status-deal"
+                    : "status status-no-deal";
+
+                statusSpan.innerText =
+                    status;
+
+
+                statusTd.appendChild(
+                    statusSpan
+                );
+
+
+                tr.appendChild(numberTd);
+
+                tr.appendChild(nameTd);
+
+                tr.appendChild(idTd);
+
+                tr.appendChild(statusTd);
+
+
+                tbody.appendChild(tr);
+
+            }
+        );
+
+    }
+
+
+    /*
+     ============================================================
+     FILTER
+     ============================================================
+    */
+
+    function setFilter(filter) {
+
+        currentFilter = filter;
+
+
+        document
+            .getElementById("filterAll")
+            .classList.remove("active");
+
+        document
+            .getElementById("filterDeal")
+            .classList.remove("active");
+
+        document
+            .getElementById("filterNoDeal")
+            .classList.remove("active");
+
+
+        if (filter === "ALL") {
+
+            document
+                .getElementById("filterAll")
+                .classList.add("active");
+
+        }
+
+        else if (filter === "DEAL") {
+
+            document
+                .getElementById("filterDeal")
+                .classList.add("active");
+
+        }
+
+        else if (filter === "NO DEAL") {
+
+            document
+                .getElementById("filterNoDeal")
+                .classList.add("active");
+
+        }
+
+
+        renderTable();
+
+    }
+
+
+    /*
+     ============================================================
+     APPLY FILTERS
+     ============================================================
+    */
+
+    function applyFilters() {
+
+        renderTable();
+
+    }
+
+
+    /*
+     ============================================================
+     DEBUG
+     ============================================================
+    */
+
+    function renderDebug(stats) {
+
+        const totalAccounts =
+            allAccounts.length;
+
+        const withDeal =
+            dealAccountIds.size;
+
+        const noDeal =
+            totalAccounts - withDeal;
+
+
+        const check =
+            withDeal + noDeal;
+
+
+        const debugText =
+
+            "========== DEBUG ==========\n" +
+
+            "Account Owner: " +
+            ACCOUNT_OWNER + "\n" +
+
+            "Deal Owner: " +
+            DEAL_OWNER + "\n" +
+
+            "Deal Year Field: " +
+            DEAL_YEAR_FIELD + "\n" +
+
+            "Target Deal Year: " +
+            TARGET_DEAL_YEAR + "\n\n" +
+
+            "Unique Anurag Accounts: " +
+            totalAccounts + "\n" +
+
+            "Total Deals Fetched: " +
+            stats.totalDeals + "\n" +
+
+            "Deals owned by Anurag: " +
+            stats.ownerDeals + "\n" +
+
+            "Anurag Deals with Year " +
+            TARGET_DEAL_YEAR + ": " +
+            stats.ownerYearDeals + "\n" +
+
+            "Target Deals with Account: " +
+            stats.ownerYearDealsWithAccount + "\n" +
+
+            "Target Deals matching Anurag Accounts: " +
+            stats.matchingAccounts + "\n\n" +
+
+            "UNIQUE ACCOUNTS WITH DEAL: " +
+            withDeal + "\n" +
+
+            "NO DEAL ACCOUNTS: " +
+            noDeal + "\n\n" +
+
+            "CHECK: With Deal + No Deal = " +
+            check + "\n" +
+
+            "CHECK SHOULD EQUAL TOTAL = " +
+            totalAccounts + "\n" +
+
+            "============================";
+
+
+        const debugBox =
+            document.getElementById(
+                "debugBox"
+            );
+
+        debugBox.innerText =
+            debugText;
+
+        debugBox.style.display =
+            "block";
+
+    }
+
+
+    /*
+     ============================================================
+     MAIN LOAD
+     ============================================================
+    */
+
+    async function loadData() {
+
+        try {
+
+            document.getElementById(
+                "tableLoading"
+            ).innerText =
+                "Loading Anurag Mishra accounts...";
+
+
+            /*
+             Fetch Accounts
+            */
+
+            allAccounts =
+                await fetchAnuragAccounts();
+
+
+            /*
+             Create Set of Account IDs
+            */
+
+            const anuragAccountIds =
+                new Set(
+                    allAccounts.map(
+                        account =>
+                            String(account.id)
+                    )
+                );
+
+
+            console.log(
+                "Unique Anurag Account IDs:",
+                anuragAccountIds
+            );
+
+
+            document.getElementById(
+                "tableLoading"
+            ).innerText =
+                "Loading deals...";
+
+
+            /*
+             Fetch Deals
+            */
+
+            const deals =
+                await fetchDeals();
+
+
+            /*
+             Build unique FY Deal Account Set
+            */
+
+            const dealResult =
+                buildDealAccountSet(
+                    deals,
+                    anuragAccountIds
+                );
+
+
+            dealAccountIds =
+                dealResult.set;
+
+
+            /*
+             Add total deals for debug
+            */
+
+            const debugStats = {
+
+                totalDeals:
+                    deals.length,
+
+                ownerDeals:
+                    dealResult.ownerDeals,
+
+                ownerYearDeals:
+                    dealResult.ownerYearDeals,
+
+                ownerYearDealsWithAccount:
+                    dealResult.ownerYearDealsWithAccount,
+
+                matchingAccounts:
+                    dealResult.matchingAccounts
+
+            };
+
+
+            console.log(
+                "Final unique Deal Account IDs:",
+                Array.from(dealAccountIds)
+            );
+
+
+            /*
+             Render KPI
+            */
+
+            renderKPI();
+
+
+            /*
+             Render table
+            */
+
+            renderTable();
+
+
+            /*
+             Render debug
+            */
+
+            renderDebug(
+                debugStats
+            );
+
+
+            /*
+             Hide loading
+            */
+
+            document.getElementById(
+                "tableLoading"
+            ).style.display =
+                "none";
+
+
+            document.getElementById(
+                "accountTable"
+            ).style.display =
+                "table";
+
+
+        }
+
+        catch (error) {
+
+            console.error(
+                "Widget error:",
+                error
+            );
+
+
+            showError(
+                "Error loading data:\n\n" +
+                (
+                    error &&
+                    error.message
+                    ? error.message
+                    : JSON.stringify(error)
+                )
+            );
+
+
+            document.getElementById(
+                "tableLoading"
+            ).innerText =
+                "Failed to load data.";
+
+        }
+
+    }
+
+
+    /*
+     ============================================================
+     ZOHO INITIALIZATION
+     ============================================================
+    */
+
+    ZOHO.embeddedApp.on(
+        "PageLoad",
+        function(data) {
+
+            console.log(
+                "Zoho Widget PageLoad:",
+                data
+            );
+
+            loadData();
+
+        }
+    );
+
+
+    ZOHO.embeddedApp.init();
+
+</script>
+
+</body>
+</html>
