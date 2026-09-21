@@ -51,6 +51,7 @@
         .last-updated { font-size: 12px; color: #6b7280; padding-bottom: 9px; }
 
         .card-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .card-row.five { grid-template-columns: repeat(5, 1fr); }
         .card { background: #ffffff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; }
         .card-title { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
         .card-value { font-size: 26px; font-weight: bold; color: #111827; }
@@ -159,7 +160,7 @@
         .funnel-total { margin-top: 8px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #374151; text-align: right; }
 
         @media (max-width: 900px) {
-            .card-row { grid-template-columns: repeat(2, 1fr); }
+            .card-row, .card-row.five { grid-template-columns: repeat(2, 1fr); }
             .funnel-row { grid-template-columns: 140px 1fr 100px; }
             .mix-col { display: none; }
         }
@@ -1021,16 +1022,25 @@ function buildLiveData(dealMeta, accountMeta, deals, accounts) {
     }).length;
 
     var newDealsByAccount = {};
+    var dealAccount = {};
     deals.forEach(function(d) {
-        if (!dealTypeOk(d)) return;
         var accId = ddLookupId(d.Account_Name);
         if (!accId) return;
+        if (d.id) dealAccount[String(d.id)] = accId;
+        if (!dealTypeOk(d)) return;
         (newDealsByAccount[accId] = newDealsByAccount[accId] || []).push(d);
+    });
+
+    // Lost - No Follow-up: every Deal Type New deal is Closed Lost (no open or won deal left)
+    Object.keys(accountsById).forEach(function(id) {
+        var list = (newDealsByAccount[id] || []).filter(function(d) { return !isRemovedStage(d.Stage); });
+        accountsById[id].lostOnly = list.length > 0 && list.every(function(d) { return isClosedLostStage(d.Stage); });
     });
 
     return {
         deals: deals,
         newDealsByAccount: newDealsByAccount,
+        dealAccount: dealAccount,
         accountsById: accountsById,
         ownerIdByName: ownerIdByName,
         gistValues: gistValues,
@@ -1614,14 +1624,18 @@ function latestOwnerCalls(accounts, calls) {
 
     var latest = {};
 
+    var dealAccount = (liveResolved && liveResolved.dealAccount) || {};
+
     calls.forEach(function(call) {
         var whatId = ddLookupId(call.What_Id);
-        var account = byId[whatId];
+        // A call logged on a deal counts for that deal's account
+        var accId = byId[whatId] ? whatId : dealAccount[whatId];
+        var account = accId ? byId[accId] : null;
         if (!account) return;
         if (ddLookupId(call.Owner) !== account.ownerId) return;
         var date = ddParseDate(call.Call_Start_Time);
         if (!date) return;
-        if (!latest[whatId] || date > latest[whatId]) latest[whatId] = date;
+        if (!latest[accId] || date > latest[accId]) latest[accId] = date;
     });
 
     return latest;
@@ -1658,7 +1672,7 @@ function computeAccountDealStatus(live, selectedQuarter, gistSelection) {
 function computeAccountStats(accounts, calls, dealStatus) {
 
     var latest = latestOwnerCalls(accounts, calls);
-    var stats = { total: 0, touched: 0, untouched: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, bucket_summary: {} };
+    var stats = { total: 0, touched: 0, untouched: 0, lost: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, bucket_summary: {} };
 
     accounts.forEach(function(a) {
 
@@ -1666,7 +1680,7 @@ function computeAccountStats(accounts, calls, dealStatus) {
 
         if (!stats.bucket_summary[a.bucket]) {
             stats.bucket_summary[a.bucket] = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0,
-                last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0 };
+                last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0, lost_nf: 0 };
         }
 
         var bs = stats.bucket_summary[a.bucket];
@@ -1677,6 +1691,14 @@ function computeAccountStats(accounts, calls, dealStatus) {
             if (ds.open) bs.open_deals++;
             if (ds.lost) bs.closed_lost++;
             if (ds.won) bs.closed_won++;
+        }
+
+        // Lost-only accounts sit in their own group, even if a call was logged.
+        // Reopening the deal makes the account active again.
+        if (a.lostOnly) {
+            stats.lost++;
+            bs.lost_nf++;
+            return;
         }
 
         var lastCall = latest[a.id];
@@ -1746,24 +1768,26 @@ function renderAll() {
 
     var html = "";
 
-    html += '<div class="card-row">';
+    html += '<div class="card-row five">';
     html += cardHtml("Target (" + (allQuarters ? FY_LONG_LABEL : selectedQuarter) + ")", formatLakh(target), "target", "target", escapeHtml(targetSub));
     html += cardHtml("Achieved (Closed Won)", "Calculating...", "achieved waiting", "achieved");
     html += cardHtml("Payment Received", "Calculating...", "achieved waiting", "payment_received");
     html += cardHtml("Payment Pending", "Calculating...", "pending waiting", "payment_pending");
+    html += cardHtml("Current Pipeline", "Calculating...", "pending waiting", "current_pipeline");
     html += '</div>';
 
     html += '<div class="card-row">';
     html += cardHtml("Total Accounts", "Calculating...", "waiting", "total_accounts", "Accounts with a Deal Type New deal");
-    html += cardHtml("Untouched Accounts", "Calculating...", "pending waiting", "untouched");
     html += cardHtml("Touched", "Calculating...", "achieved waiting", "touched");
-    html += cardHtml("Current Pipeline", "Calculating...", "pending waiting", "current_pipeline");
+    html += cardHtml("Untouched Accounts", "Calculating...", "pending waiting", "untouched");
+    html += cardHtml("Lost - No Follow-up", "Calculating...", "waiting", "lost_no_followup");
     html += '</div>';
 
     html += '<div class="section"><h2>Bucket-wise Activity</h2>';
     html += '<p class="section-note">Accounts with a Deal Type New deal. Open Deals, Closed Lost and Closed Won count accounts with a ' +
         'Deal Type New, Deal Year ' + FY_FILTER + ' deal in that stage (Expected Order Date / Closing Date / Actual Order Date in the ' +
-        'selected period). Call activity is measured from today, so the quarter filter does not change it.</p>';
+        'selected period). Call activity is measured from today, so the quarter filter does not change it. ' +
+        'Last 30 + 31-60 + 60+ + Non-Touched + Lost - No Follow-up = Total.</p>';
     html += '<div id="bucketWrap"><div class="loading">Calculating account activity...</div></div>';
     html += '</div>';
 
@@ -1826,6 +1850,8 @@ function renderAll() {
             setCardValue("touched", stats.touched);
             setCardSub("untouched", accountShareSub(stats.untouched, stats.total));
             setCardSub("touched", accountShareSub(stats.touched, stats.total));
+            setCardValue("lost_no_followup", stats.lost);
+            setCardSub("lost_no_followup", accountShareSub(stats.lost, stats.total));
 
             var bucketWrap = document.getElementById("bucketWrap");
             if (bucketWrap) bucketWrap.innerHTML = renderBucketTable(stats.bucket_summary);
@@ -1855,7 +1881,7 @@ function showLiveError(message) {
         var el = document.getElementById(id);
         if (el) el.innerHTML = html;
     });
-    CARD_CATEGORIES.concat(["total_accounts", "untouched", "touched"]).forEach(function(cat) {
+    CARD_CATEGORIES.concat(["total_accounts", "untouched", "touched", "lost_no_followup"]).forEach(function(cat) {
         var el = document.getElementById("card-" + cat);
         if (el && el.classList.contains("waiting")) setCardValue(cat, "—");
     });
@@ -1974,9 +2000,9 @@ function renderBucketTable(bucketSummary) {
 
     var html = '<div class="table-scroll"><table><thead><tr><th style="text-align:left;">Bucket</th>' +
         '<th>Total</th><th>Open Deals</th><th>Closed Lost</th><th>Closed Won</th>' +
-        '<th>Last 30 Days</th><th>31-60 Days</th><th>60+ Days</th><th>Non-Touched</th></tr></thead><tbody>';
+        '<th>Last 30 Days</th><th>31-60 Days</th><th>60+ Days</th><th>Non-Touched</th><th>Lost - No Follow-up</th></tr></thead><tbody>';
 
-    var grand = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0 };
+    var grand = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0, lost_nf: 0 };
 
     function bucketCell(count, category) {
         if (count && count > 0) return '<td class="clickable plain" data-cat="' + escapeHtml(category) + '">' + count + '</td>';
@@ -1997,6 +2023,7 @@ function renderBucketTable(bucketSummary) {
         html += bucketCell(row.days_31_60, prefix + "days_31_60");
         html += bucketCell(row.days_60_plus, prefix + "days_60_plus");
         html += bucketCell(row.non_touched, prefix + "non_touched");
+        html += bucketCell(row.lost_nf, prefix + "lost_nf");
         html += '</tr>';
 
         Object.keys(grand).forEach(function(key) { grand[key] += Number(row[key] || 0); });
@@ -2006,7 +2033,7 @@ function renderBucketTable(bucketSummary) {
         '<td>' + grand.Total + '</td><td>' + grand.open_deals + '</td><td>' + grand.closed_lost + '</td><td>' +
         grand.closed_won + '</td><td>' + grand.last_30 + '</td>' +
         '<td>' + grand.days_31_60 + '</td><td>' + grand.days_60_plus + '</td>' +
-        '<td>' + grand.non_touched + '</td></tr>';
+        '<td>' + grand.non_touched + '</td><td>' + grand.lost_nf + '</td></tr>';
 
     return html + '</tbody></table></div>';
 }
@@ -2553,8 +2580,8 @@ function renderAccountOwnerSummary() {
 
     var live = aorLive.live;
     var PENDING = "…";
-    var keys = ["total_accounts", "last_30", "days_31_60", "days_60_plus", "touched", "non_touched", "closed_won", "closed_lost"];
-    var categories = ["total_accounts", "aging:last_30", "aging:days_31_60", "aging:days_60_plus", "touched", "untouched", "won_accounts", "lost_accounts"];
+    var keys = ["total_accounts", "last_30", "days_31_60", "days_60_plus", "touched", "non_touched", "lost_nf", "closed_won", "closed_lost"];
+    var categories = ["total_accounts", "aging:last_30", "aging:days_31_60", "aging:days_60_plus", "touched", "untouched", "lost_no_followup", "won_accounts", "lost_accounts"];
 
     function cell(value, ownerName, category, gistName) {
         if (value === PENDING) return '<td>' + PENDING + '</td>';
@@ -2569,16 +2596,16 @@ function renderAccountOwnerSummary() {
     function rowValues(stats, won, lost) {
         if (!stats) {
             return { total_accounts: PENDING, last_30: PENDING, days_31_60: PENDING, days_60_plus: PENDING,
-                     touched: PENDING, non_touched: PENDING, closed_won: won, closed_lost: lost };
+                     touched: PENDING, non_touched: PENDING, lost_nf: PENDING, closed_won: won, closed_lost: lost };
         }
         return { total_accounts: stats.total, last_30: stats.last_30, days_31_60: stats.days_31_60,
                  days_60_plus: stats.days_60_plus, touched: stats.touched, non_touched: stats.untouched,
-                 closed_won: won, closed_lost: lost };
+                 lost_nf: stats.lost, closed_won: won, closed_lost: lost };
     }
 
     var html = '<div class="table-scroll"><table><thead><tr>';
     html += '<th style="text-align:left;">Account Owner</th><th>Total</th><th>Last 30</th>';
-    html += '<th>31-60</th><th>60+</th><th>Touched</th><th>Non-Touched</th><th>Closed Won<br><span style="font-weight:400;font-size:11px;">accounts</span></th>' +
+    html += '<th>31-60</th><th>60+</th><th>Touched</th><th>Non-Touched</th><th>Lost - No Follow-up</th><th>Closed Won<br><span style="font-weight:400;font-size:11px;">accounts</span></th>' +
         '<th>Closed Lost<br><span style="font-weight:400;font-size:11px;">accounts</span></th>';
     html += '</tr></thead><tbody>';
 
@@ -2608,9 +2635,9 @@ function renderAccountOwnerSummary() {
 
         if (isGist && aorGistExpanded) {
             if (!aorLive.gistBreakdown) {
-                html += '<tr class="sub-row"><td class="row-label" colspan="9">Calculating Gist account owners...</td></tr>';
+                html += '<tr class="sub-row"><td class="row-label" colspan="10">Calculating Gist account owners...</td></tr>';
             } else if (aorLive.gistBreakdown.length === 0) {
-                html += '<tr class="sub-row"><td class="row-label" colspan="9">No Gist Account Owner values found.</td></tr>';
+                html += '<tr class="sub-row"><td class="row-label" colspan="10">No Gist Account Owner values found.</td></tr>';
             } else {
                 aorLive.gistBreakdown.forEach(function(g) {
                     var subRow = rowValues(g.stats, g.won, g.lost);
@@ -2741,6 +2768,7 @@ function categoryLabel(category) {
         "current_pipeline": "Current Pipeline",
         "total_accounts": "Total Accounts",
         "untouched": "Untouched Accounts",
+        "lost_no_followup": "Lost - No Follow-up",
         "touched": "Touched Accounts",
         "aging:last_30": "Touched in Last 30 Days",
         "aging:days_31_60": "Touched 31-60 Days Ago",
@@ -2768,7 +2796,7 @@ function categoryLabel(category) {
 
 
 var CARD_DETAIL_CATEGORIES = ["target", "achieved", "payment_received", "payment_pending",
-    "total_accounts", "untouched", "touched", "current_pipeline"];
+    "total_accounts", "untouched", "touched", "lost_no_followup", "current_pipeline"];
 
 
 function openDrilldown(scope, category) {
@@ -2988,8 +3016,9 @@ async function runCardDetail(scope, category) {
     accounts.forEach(function(account) {
 
         var lastCall = latest[account.id];
-        if (category === "untouched" && lastCall) return;
-        if (category === "touched" && !lastCall) return;
+        if (category === "lost_no_followup" && !account.lostOnly) return;
+        if (category === "untouched" && (lastCall || account.lostOnly)) return;
+        if (category === "touched" && (!lastCall || account.lostOnly)) return;
 
         var newDeals = live.newDealsByAccount[account.id] || [];
         var fyNewDeals = newDeals.filter(function(d) { return dealFiscalYear(d) === FY_FILTER; });
@@ -2997,8 +3026,14 @@ async function runCardDetail(scope, category) {
         var ref = latestDeal(fyNewDeals.length ? fyNewDeals : newDeals);
         ebTotal += eb;
 
+        var lostDeals = newDeals.filter(function(d) { return isClosedLostStage(d.Stage); });
+        var lastLost = lostDeals.map(function(d) { return ddParseDate(d[fieldInfo.closingDate.api]); })
+            .filter(Boolean).sort(function(a, b) { return b - a; })[0];
+
         var status = "Untouched";
-        if (lastCall) {
+        if (account.lostOnly) {
+            status = "Lost - No Follow-up";
+        } else if (lastCall) {
             var age = agingOf(lastCall);
             status = age === "last_30" ? "Touched, last 30 days" : (age === "days_31_60" ? "Touched, 31-60 days" : "Touched, 60+ days");
         }
@@ -3013,6 +3048,8 @@ async function runCardDetail(scope, category) {
             lastCall: lastCall ? fmtDate(lastCall.toISOString().slice(0, 10)) : "—",
             daysSince: lastCall ? String(Math.floor((now - lastCall) / 86400000)) : "—",
             status: status,
+            lostDeals: String(lostDeals.length),
+            lastLost: lastLost ? fmtDate(lastLost.toISOString().slice(0, 10)) : "—",
             expectedBusiness: formatLakh(eb),
             paymentReceivingDate: ref ? fmtDate(fieldValueText(ref[fieldInfo.paymentDate.api])) : "—",
             ouCode: detailValue(fieldInfo.ouCode, ref, account),
@@ -3032,6 +3069,8 @@ async function runCardDetail(scope, category) {
         { key: "lastCall", title: "Last Call by Owner", logic: category !== "total_accounts" },
         { key: "daysSince", title: "Days Since Call" },
         { key: "status", title: "Status", left: true, logic: category !== "total_accounts" },
+        { key: "lostDeals", title: "Closed Lost Deals", logic: category === "lost_no_followup" },
+        { key: "lastLost", title: "Last Closing Date (lost)" },
         { key: "bucket", title: "Bucket", left: true },
         { key: "expectedBusiness", title: "Expected Business (" + FY_SHORT_LABEL + ")" },
         { key: "paymentReceivingDate", title: "Payment Receiving Date" },
@@ -3041,8 +3080,9 @@ async function runCardDetail(scope, category) {
 
     var ruleA = {
         total_accounts: "accounts of the selected owner with at least one Deal Type New deal",
-        untouched: "those accounts with no call logged by the account owner",
-        touched: "those accounts with at least one call logged by the account owner"
+        untouched: "active accounts (not Lost - No Follow-up) with no call by the account owner on the account or its deals",
+        touched: "active accounts (not Lost - No Follow-up) with a call by the account owner on the account or its deals",
+        lost_no_followup: "accounts whose every Deal Type New deal is Closed Lost / Approval for Close Lost. A call alone does not move them; reopen the deal to make the account active"
     }[category];
 
     var summaryA = '<div class="modal-summary"><strong>' + accountsLabel(rowsA.length) + '</strong>, Expected Business <strong>' +
@@ -3161,17 +3201,19 @@ async function runDrilldown(scope, category) {
         var age = lastCall ? agingOf(lastCall) : null;
         var isMatch = false;
 
-        if (category === "untouched") isMatch = !lastCall;
-        else if (category === "touched") isMatch = !!lastCall;
-        else if (kind === "aging") isMatch = age === parts[1];
+        if (category === "lost_no_followup") isMatch = account.lostOnly;
+        else if (category === "untouched") isMatch = !account.lostOnly && !lastCall;
+        else if (category === "touched") isMatch = !account.lostOnly && !!lastCall;
+        else if (kind === "aging") isMatch = !account.lostOnly && age === parts[1];
         else if (kind === "bucket" && account.bucket === decodeURIComponent(parts[1])) {
             var ds = dealStatus[account.id] || {};
             if (parts[2] === "Total") isMatch = true;
             else if (parts[2] === "open_deals") isMatch = !!ds.open;
             else if (parts[2] === "closed_lost") isMatch = !!ds.lost;
             else if (parts[2] === "closed_won") isMatch = !!ds.won;
-            else if (parts[2] === "non_touched") isMatch = !lastCall;
-            else isMatch = age === parts[2];
+            else if (parts[2] === "lost_nf") isMatch = account.lostOnly;
+            else if (parts[2] === "non_touched") isMatch = !account.lostOnly && !lastCall;
+            else isMatch = !account.lostOnly && age === parts[2];
         }
 
         if (isMatch) matches.push(account.name);
