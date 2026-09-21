@@ -1,224 +1,167 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Anurag Mishra - Account Deal KPI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Dashboard</title>
 
-    <script src="https://live.zwidgets.com/js-sdk/1.5/ZohoEmbededAppSDK.min.js"></script>
+    <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
-        body {
-            margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            background: #f5f7fa;
-            color: #222;
-        }
+        body { margin: 0; padding: 20px; font-family: Arial, Helvetica, sans-serif; background: #f5f7fa; color: #333; }
 
-        .container {
-            max-width: 1400px;
-            margin: auto;
-        }
+        .container { max-width: 1300px; margin: 0 auto; }
 
         .header {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            background: #ffffff; padding: 20px 25px; border-radius: 10px; margin-bottom: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
         }
 
-        .header h2 {
-            margin: 0 0 6px 0;
+        .header h1 { margin: 0 0 4px 0; font-size: 22px; color: #1f2937; }
+        .header p { margin: 0; color: #6b7280; font-size: 13px; }
+
+        .header-controls { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 3px; }
+        .filter-group label { font-size: 11px; color: #6b7280; }
+        .filter-group.hidden { display: none; }
+        .filter-group select { padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px; min-width: 190px; background: #ffffff; }
+
+        .multi-select { position: relative; }
+        .user-chip { padding: 8px 12px; border-radius: 6px; border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+            font-size: 14px; font-weight: 600; min-width: 190px; }
+        .multi-button {
+            padding: 8px 12px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 14px;
+            min-width: 210px; background: #ffffff; text-align: left; cursor: pointer; color: #111827;
+        }
+        .multi-menu {
+            display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 50; min-width: 230px;
+            background: #ffffff; border: 1px solid #d1d5db; border-radius: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.12); padding: 6px 0;
+        }
+        .multi-select.open .multi-menu { display: block; }
+        .multi-option { display: flex; align-items: center; gap: 8px; padding: 7px 12px; font-size: 14px; color: #1f2937; cursor: pointer; }
+        .multi-option:hover { background: #f3f4f6; }
+        .multi-option.all { border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+
+        #refreshButton { background: #2563eb; color: #ffffff; border: none; padding: 9px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        #refreshButton:disabled { background: #9ca3af; }
+
+        .last-updated { font-size: 12px; color: #6b7280; padding-bottom: 9px; }
+
+        .card-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .card { background: #ffffff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; }
+        .card-title { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
+        .card-value { font-size: 26px; font-weight: bold; color: #111827; }
+        .card-value.target { color: #7c3aed; }
+        .card-value.achieved { color: #059669; }
+        .card-value.pending { color: #d97706; }
+        .card-value.waiting { color: #9ca3af; font-size: 18px; }
+        .card-sub { font-size: 12px; color: #6b7280; margin-top: 6px; min-height: 15px; }
+        .card-sub strong { color: #374151; }
+
+        .section { background: #ffffff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .section h2 { margin: 0 0 15px 0; font-size: 17px; color: #1f2937; }
+        .section h3 { margin: 22px 0 10px 0; font-size: 15px; color: #1f2937; }
+        .section h3:first-of-type { margin-top: 0; }
+        .section-note { font-size: 12px; color: #6b7280; margin: -8px 0 12px 0; }
+
+        .table-scroll { overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #d0d7de; padding: 8px 10px; text-align: center; font-size: 13px; }
+        th { background: #1f4e78; color: #ffffff; }
+        th.current-q { background: #15406a; box-shadow: inset 0 -3px 0 #f0b429; }
+        td.row-label { text-align: left; font-weight: 600; }
+        td.row-label .sub { display: block; font-weight: 400; font-size: 11px; color: #6b7280; }
+        tr.grand-total { background: #d9eaf7; font-weight: 700; }
+        tbody tr:nth-child(even) { background: #f7f9fb; }
+
+        tr.sub-row td { background: #fbfcfe; font-size: 12px; }
+        tr.sub-row td.row-label { font-weight: 400; padding-left: 28px; color: #374151; }
+
+        .expand-btn {
+            border: 1px solid #c7d2df; background: #ffffff; color: #1f4e78; border-radius: 4px;
+            font-size: 11px; padding: 1px 6px; margin-left: 8px; cursor: pointer;
         }
 
-        .header p {
-            margin: 0;
-            color: #666;
-        }
+        .loading { padding: 30px; text-align: center; color: #6b7280; }
+        .error { padding: 15px; background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; color: #991b1b; font-size: 14px; }
 
-        .kpi-container {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+        .card-value.clickable, td.clickable, .funnel-row.clickable { cursor: pointer; }
+        .card-value.clickable, td.clickable .big, td.clickable.plain { text-decoration: underline; text-decoration-style: dotted; text-decoration-color: #93c5fd; }
+        .card-value.clickable:hover, td.clickable:hover { opacity: 0.75; }
 
-        .kpi {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            text-align: center;
-        }
+        /* The widget iframe can be taller than the screen, so the popup opens where you clicked */
+        .modal-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.35); z-index: 100; }
+        .modal-overlay.open { display: block; }
+        .modal-box { position: absolute; left: 50%; transform: translateX(-50%); background: #ffffff; border-radius: 10px;
+            max-width: 520px; width: 92%; max-height: 560px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+        .modal-box.wide { max-width: 1240px; width: 97%; max-height: 640px; }
+        .modal-summary { font-size: 12px; color: #374151; margin-bottom: 8px; line-height: 1.5; }
+        .modal-summary strong { color: #111827; }
+        .detail-table th, .detail-table td { font-size: 12px; padding: 6px 8px; white-space: nowrap; }
+        .detail-table th { position: sticky; top: 0; z-index: 1; }
+        .detail-table td.left { text-align: left; }
+        .detail-table td.logic { background: #fff7e6; font-weight: 600; }
+        .detail-table th.logic { background: #b45309; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { margin: 0; font-size: 16px; color: #1f2937; }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; line-height: 1; }
+        .modal-body { padding: 12px 20px; overflow-y: auto; }
+        .modal-body ul { margin: 0; padding-left: 20px; }
+        .modal-body li { padding: 4px 0; font-size: 13px; color: #374151; }
+        .modal-empty { color: #6b7280; font-size: 13px; padding: 10px 0; }
+        .modal-count { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
 
-        .kpi-title {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 10px;
-        }
+        .eb-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
+        .eb-tile { border: 1px solid #dbe3ec; border-left: 5px solid #1f4e78; border-radius: 7px; padding: 10px 14px; background: #f8fafc; }
+        .eb-tile .label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+        .eb-tile .value { display: block; font-size: 20px; font-weight: 700; color: #111827; }
+        .eb-tile .sub { display: block; font-size: 11px; color: #6b7280; margin-top: 2px; }
 
-        .kpi-value {
-            font-size: 32px;
-            font-weight: bold;
-        }
+        .eb-table th { white-space: nowrap; }
+        .plan-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.7); }
 
-        .deal-value {
-            color: #188038;
-        }
+        .amount-cell .big { font-size: 15px; font-weight: 700; display: block; color: #1f2937; }
+        .amount-cell .small { font-size: 11px; color: #6b7280; }
+        .amount-cell.zero .big { color: #b6bec9; font-weight: 400; }
+        .amount-cell.total-col { background: #eef6ff; }
+        .amount-cell.total-col .big { color: #1457b8; }
 
-        .no-deal-value {
-            color: #d93025;
-        }
+        .mix-col { min-width: 160px; }
+        .mix-bar { display: flex; height: 14px; border-radius: 3px; overflow: hidden; background: #eef1f5; }
+        .mix-bar span { display: block; height: 100%; }
 
-        .controls {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        .pct { display: inline-block; margin-top: 3px; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+        .pct.good { background: #d1fae5; color: #065f46; }
+        .pct.ok { background: #fef3c7; color: #92400e; }
+        .pct.low { background: #fee2e2; color: #991b1b; }
+        .pct.none { background: #eef1f5; color: #6b7280; font-weight: 400; }
 
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+        .team-table td.q-cell .big { display: block; font-size: 14px; font-weight: 700; color: #1f2937; }
+        .team-table td.q-cell .small { display: block; font-size: 11px; color: #6b7280; }
 
-        #searchBox {
-            flex: 1;
-            min-width: 250px;
-            padding: 10px 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 14px;
-        }
+        .data-source { margin-top: 10px; font-size: 12px; color: #6b7280; line-height: 1.5; }
+        .warn-note { margin-top: 10px; padding: 10px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; color: #92400e; font-size: 13px; }
+        .warn-note code { background: #fef3c7; padding: 1px 4px; border-radius: 3px; }
 
-        .filter-btn {
-            padding: 10px 16px;
-            border: 1px solid #ccc;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .filter-btn:hover {
-            background: #f1f3f4;
-        }
-
-        .filter-btn.active {
-            background: #1a73e8;
-            color: white;
-            border-color: #1a73e8;
-        }
-
-        .table-container {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            overflow: hidden;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f1f3f4;
-            padding: 13px;
-            text-align: left;
-            font-size: 13px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        td {
-            padding: 13px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
-
-        .account-link {
-            color: #1a73e8;
-            cursor: pointer;
-            font-weight: 500;
-        }
-
-        .account-link:hover {
-            text-decoration: underline;
-        }
-
-        .status {
-            display: inline-block;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-        .status-deal {
-            background: #e6f4ea;
-            color: #188038;
-        }
-
-        .status-no-deal {
-            background: #fce8e6;
-            color: #d93025;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .error {
-            background: #fce8e6;
-            color: #b3261e;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            white-space: pre-wrap;
-        }
-
-        .debug {
-            margin-top: 20px;
-            background: #202124;
-            color: #e8eaed;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: Consolas, monospace;
-            font-size: 12px;
-            white-space: pre-wrap;
-            line-height: 1.6;
-        }
-
-        .result-count {
-            padding: 12px 15px;
-            color: #666;
-            font-size: 13px;
-            border-bottom: 1px solid #eee;
-        }
+        .funnel { display: flex; flex-direction: column; gap: 6px; }
+        .funnel-row { display: grid; grid-template-columns: 230px 1fr 140px; align-items: center; gap: 12px; padding: 4px 6px; border-radius: 6px; }
+        .funnel-row:hover { background: #f3f4f6; }
+        .funnel-stage { font-size: 13px; font-weight: 600; color: #1f2937; }
+        .funnel-stage .sub { display: block; font-size: 11px; font-weight: 400; color: #6b7280; }
+        .funnel-track { display: flex; justify-content: center; }
+        .funnel-bar { height: 26px; border-radius: 4px; min-width: 6px; }
+        .funnel-value { text-align: right; }
+        .funnel-value .big { display: block; font-size: 14px; font-weight: 700; color: #1f2937; }
+        .funnel-value .small { font-size: 11px; color: #6b7280; }
+        .funnel-total { margin-top: 8px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #374151; text-align: right; }
 
         @media (max-width: 900px) {
-            .kpi-container {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 600px) {
-            .kpi-container {
-                grid-template-columns: 1fr;
-            }
+            .card-row { grid-template-columns: repeat(2, 1fr); }
+            .funnel-row { grid-template-columns: 140px 1fr 100px; }
+            .mix-col { display: none; }
         }
     </style>
 </head>
@@ -228,1085 +171,3025 @@
 <div class="container">
 
     <div class="header">
-        <h2>Anurag Mishra - FY 2026-27 Deal Status</h2>
-        <p>
-            Account Owner: <strong>Anurag Mishra</strong>
-            &nbsp; | &nbsp;
-            Deal Owner: <strong>Anurag Mishra</strong>
-            &nbsp; | &nbsp;
-            Deal Year: <strong>2026-2027</strong>
-        </p>
+        <div>
+            <h1>My Dashboard</h1>
+            <p>Your target, activity and pipeline (Deal Type: New)</p>
+        </div>
+        <div class="header-controls">
+            <div class="filter-group">
+                <label>Showing data for</label>
+                <div id="currentUserLabel" class="user-chip">Identifying you...</div>
+            </div>
+            <div class="filter-group hidden" id="gistFilterGroup">
+                <label>Gist account owner (select one or more)</label>
+                <div class="multi-select" id="gistMulti">
+                    <button type="button" class="multi-button" id="gistMultiButton" onclick="toggleGistMenu(event)">All Gist Account Owners &#9662;</button>
+                    <div class="multi-menu" id="gistMultiMenu"></div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label for="quarterFilter">Quarter</label>
+                <select id="quarterFilter" onchange="renderAll()"></select>
+            </div>
+            <button id="refreshButton" onclick="loadReport()">Refresh</button>
+            <div class="last-updated" id="lastUpdated">Last Updated: -</div>
+        </div>
     </div>
 
-    <div id="errorBox" class="error" style="display:none;"></div>
-
-    <div class="kpi-container">
-
-        <div class="kpi">
-            <div class="kpi-title">No Deal Accounts</div>
-            <div id="noDealCount" class="kpi-value no-deal-value">-</div>
-        </div>
-
-        <div class="kpi">
-            <div class="kpi-title">Total Accounts</div>
-            <div id="totalAccounts" class="kpi-value">-</div>
-        </div>
-
-        <div class="kpi">
-            <div class="kpi-title">With FY 2026-27 Deal</div>
-            <div id="dealAccounts" class="kpi-value deal-value">-</div>
-        </div>
-
-        <div class="kpi">
-            <div class="kpi-title">No FY 2026-27 Deal</div>
-            <div id="noDealAccounts" class="kpi-value no-deal-value">-</div>
-        </div>
-
+    <div id="content">
+        <div class="loading">Loading dashboard...</div>
     </div>
 
-    <div class="controls">
-
-        <input
-            type="text"
-            id="searchBox"
-            placeholder="Search account name..."
-            onkeyup="applyFilters()"
-        >
-
-        <button
-            id="filterAll"
-            class="filter-btn active"
-            onclick="setFilter('ALL')">
-            All
-        </button>
-
-        <button
-            id="filterDeal"
-            class="filter-btn"
-            onclick="setFilter('DEAL')">
-            Deal
-        </button>
-
-        <button
-            id="filterNoDeal"
-            class="filter-btn"
-            onclick="setFilter('NO DEAL')">
-            No Deal
-        </button>
-
-    </div>
-
-    <div class="table-container">
-
-        <div id="resultCount" class="result-count">
-            Loading...
+    <div class="section">
+        <h2 id="aorTitle">Account Owner Summary (FY 2026-27)</h2>
+        <div id="accountOwnerSummarySection">
+            <div class="loading">Loading account owner summary...</div>
         </div>
-
-        <div id="tableLoading" class="loading">
-            Loading accounts and deals...
-        </div>
-
-        <table id="accountTable" style="display:none;">
-
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Account Name</th>
-                    <th>Account ID</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-
-            <tbody id="accountTableBody"></tbody>
-
-        </table>
-
     </div>
-
-    <div id="debugBox" class="debug" style="display:none;"></div>
 
 </div>
 
-
+<div class="modal-overlay" id="drilldownModal" onclick="if (event.target === this) closeDrilldown()">
+    <div class="modal-box" id="drilldownBox">
+        <div class="modal-header">
+            <h3 id="drilldownTitle">Records</h3>
+            <button class="modal-close" onclick="closeDrilldown()">&times;</button>
+        </div>
+        <div class="modal-body" id="drilldownBody">Loading...</div>
+    </div>
+</div>
 <script>
 
-    /*
-     ============================================================
-     CONFIGURATION
-     ============================================================
-    */
+/* =========================================================
+   CONFIGURATION
+   ========================================================= */
 
-    const ACCOUNT_OWNER = "Anurag Mishra";
+/* Financial year: 1 April FY_START_YEAR to 31 March FY_START_YEAR + 1 */
+var FY_START_YEAR = 2026;
+var FY_FILTER = FY_START_YEAR + "-" + (FY_START_YEAR + 1);   // Deal Year (Year2) value
 
-    const DEAL_OWNER = "Anurag Mishra";
+/*
+ * Every deal needs Deal Year = FY_FILTER AND the date that matches its stage
+ * inside the FY (1 Apr - 31 Mar). That date also decides the quarter:
+ *   Open stages (pipeline)  -> Expected Order Date
+ *   Closed Won (Achieved)   -> Actual Order Date
+ *   Payment Received card   -> Payment Receiving Date (amount = Payment Received Amount)
+ *   Payment Pending card    -> Closing Date
+ *   Closed Lost             -> Closing Date
+ */
 
-    /*
-       IMPORTANT:
-       The API name of the Deal Year field is Year2.
-    */
-    const DEAL_YEAR_FIELD = "Year2";
+/* Only deals with one of these Deal Type values are used anywhere on the dashboard */
+var DEAL_TYPE_VALUES = ["New", "New Business"];
 
-    const TARGET_DEAL_YEAR = "2026-2027";
+/*
+ * Field API names. Leave "" to auto-detect. If the grey note under the
+ * Quarter x Plan table shows the wrong field, type the correct API name
+ * (Setup > Developer Hub > APIs & SDKs > API Names).
+ */
+var DEAL_FIELDS = {
+    amount: "",        // "Expected Business"
+    plan: "",          // Deal_Category, else a field labelled "Plan"
+    year: "",          // Year2
+    product: "",       // a field labelled "Product"
+    dealType: "",          // Type / a field labelled "Deal Type"
+    expectedOrderDate: "", // "Expected Order Date"
+    actualOrderDate: "",   // "Actual Order Date"
+    paymentDate: "",       // "Payment Receiving Date"
+    paymentAmount: "",     // "Payment Received Amount" (used by the Payment Received card)
+    closingDate: ""        // "Closing Date" (Closing_Date)
+};
+var ACCOUNT_GIST_FIELD = "";   // Accounts: "Gist Account Owner"
+
+/* Extra columns in the top-card popups. "" = auto-detect (Deals field first, then Accounts) */
+var DETAIL_FIELDS = {
+    ouCode: "",              // "OU Code"
+    subStartDate: ""         // "Sub Start Date" / "Subscription Start Date"
+};
+
+var AMOUNT_UNIT = "auto";      // "rupees", "lakh" or "auto"
+
+/* Knimbus Default is left out of: the Current Pipeline card, Quarter x Plan, and the Stage-wise funnel */
+var EXCLUDED_PRODUCTS = ["Knimbus Default"];
+var PIPELINE_OPEN_STAGES_ONLY = true;
+var PIPELINE_REQUIRE_SAME_OWNER = true;   // Current Pipeline card: deal owner must own the account
+var EXCLUDE_LOST_FROM_EXPECTED = true;    // Closed Lost isn't counted as expected business
+
+/* The dashboard only covers these account owners ("All Owners" = all of them) */
+var ALLOWED_ACCOUNT_OWNERS = ["Anurag Mishra", "Tejal Pandya", "Ashish Kumar", "GIST HQ"];
+
+/*
+ * Accounts are counted (Total / Touched / Untouched, bucket table, summary)
+ * only if they have at least one deal with Deal Type New (any Product).
+ */
+var GIST_HQ_OWNER_NAME = "GIST HQ";
+
+/* ---- Stages ---- */
+
+/* name = row shown in the funnel, stages = CRM stages merged into it, show = stages listed under the name */
+var STAGE_GROUPS = [
+    { name: "Qualification - Lead", stages: ["Qualification - Lead", "Qualification", "Lead"] },
+    { name: "Met and Interested", stages: ["Met and Interested"] },
+    { name: "Demonstrated and Queries Handled", stages: ["Demonstrated and Queries Handled"] },
+    { name: "Proposal Sent", stages: ["Proposal Sent", "Budgetary Proposal"],
+      show: ["Proposal Sent", "Budgetary Proposal"] },
+    { name: "Negotiation & Review", stages: ["Negotiation/Review", "Negotiation & Review", "Negotiation and Review"] },
+    { name: "Proforma Invoice Sent", stages: ["Proforma Invoice Sent"] },
+    { name: "Invoice Sent", stages: ["Invoice Sent"] },
+    { name: "Closed Won", stages: ["Email Confirmation", "PI Sent - Order Received", "Payment Received",
+                                   "Part Payment Received", "Short Payment", "Closed Won"],
+      show: ["Email Confirmation", "PI Sent - Order Received", "Payment Received", "Part Payment Received",
+             "Short Payment"] },
+    { name: "Closed Lost", stages: ["Closed Lost", "Approval for Close Lost"],
+      show: ["Closed Lost", "Approval for Close Lost"] }
+];
+
+/* Deals in these stages are left out of the dashboard */
+var REMOVED_STAGES = ["Renewal Notice Sent", "Renewal Notice to be Sent"];
+
+var PAYMENT_RECEIVED_STAGES = ["Payment Received", "Short Payment", "Part Payment Received"];
+var PAYMENT_PENDING_STAGES = ["Email Confirmation", "PI Sent - Order Received"];
+var EXCLUDED_DEAL_NAME_WORDS = ["test", "trigya"];
+
+/* ---- Sales team targets (in lakh) ----
+ * owners: CRM account owners whose accounts belong to this row (exact name)
+ * gist:   words matched inside the "Gist Account Owner" of GIST HQ accounts
+ * q:      Q1, Q2, Q3, Q4 targets     fy: full-year target
+ * monthTarget: current month target from the sales sheet
+ */
+var SALES_TEAM_TARGETS = [
+    { team: "Karthik & Vivekananda",  gist: ["Karthik", "Vivekanand"],     fy: 50, q: [8, 12, 15, 15],      monthTarget: 4 },
+    { team: "Girish, Ruchi & Prasad", gist: ["Girish", "Ruchi", "Prasad"], fy: 30, q: [5, 7, 9, 9],         monthTarget: 2.3 },
+    { team: "Sharansh Gond",          gist: ["Sharansh"],                  fy: 25, q: [4, 7, 7, 7],         monthTarget: 2.3 },
+    { team: "Anurag",                 owners: ["Anurag Mishra"],           fy: 45, q: [2, 10.5, 13, 19.5],  monthTarget: 2.5 },
+    { team: "Tejal",                  owners: ["Tejal Pandya"],            fy: 30, q: [2.5, 7, 9, 11.5],    monthTarget: 1.75 },
+    { team: "Ashish",                 owners: ["Ashish Kumar"],            fy: 25, q: [2.5, 4.5, 7.5, 10.5], monthTarget: 1.5 }
+];
+
+var PLAN_COLORS = { "Plan A": "#d64550", "Plan B": "#f0b429", "Plan C": "#e8919c", "No Plan": "#9ca3af" };
+var EXTRA_PLAN_COLORS = ["#0ea5e9", "#8b5cf6", "#10b981", "#f97316", "#6b7280"];
 
 
-    /*
-     ============================================================
-     GLOBAL DATA
-     ============================================================
-    */
+/* =========================================================
+   CONSTANTS / STATE
+   ========================================================= */
 
-    let allAccounts = [];
+var FY_SHORT_LABEL = "FY " + String(FY_START_YEAR).slice(2) + "-" + String(FY_START_YEAR + 1).slice(2);
+var FY_LONG_LABEL = "FY " + FY_START_YEAR + "-" + String(FY_START_YEAR + 1).slice(2);
+var FY_START = new Date(FY_START_YEAR, 3, 1, 0, 0, 0, 0);
+var FY_END = new Date(FY_START_YEAR + 1, 2, 31, 23, 59, 59, 999);
+var QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 
-    let dealAccountIds = new Set();
+var QUARTER_INFO = {
+    Q1: { range: "1 Apr - 30 Jun " + FY_START_YEAR },
+    Q2: { range: "1 Jul - 30 Sep " + FY_START_YEAR },
+    Q3: { range: "1 Oct - 31 Dec " + FY_START_YEAR },
+    Q4: { range: "1 Jan - 31 Mar " + (FY_START_YEAR + 1) }
+};
 
-    let currentFilter = "ALL";
+var ALL_QUARTERS = "All Quarters";
+var GIST_NOT_ASSIGNED = "(Not assigned)";
+var CARD_CATEGORIES = ["achieved", "payment_received", "payment_pending", "current_pipeline"];
+
+var STAGE_TO_GROUP = {};
+STAGE_GROUPS.forEach(function(g) {
+    g.stages.forEach(function(s) { STAGE_TO_GROUP[normStage(s)] = g.name; });
+});
+var REMOVED_STAGE_KEYS = REMOVED_STAGES.map(normStage);
+var CLOSED_WON_KEYS = STAGE_GROUPS.filter(function(g) { return g.name === "Closed Won"; })[0].stages.map(normStage);
+var CLOSED_LOST_KEYS = STAGE_GROUPS.filter(function(g) { return g.name === "Closed Lost"; })[0].stages.map(normStage);
+var PAYMENT_RECEIVED_KEYS = PAYMENT_RECEIVED_STAGES.map(normStage);
+var PAYMENT_PENDING_KEYS = PAYMENT_PENDING_STAGES.map(normStage);
+
+var selectedOwnerName = "All Owners";
+
+/* Logged-in user and what they are allowed to see (set once at load) */
+var currentUser = null;      // { id, name }
+var personalScope = null;    // { ownerNames: [...], gist: [...], label }
+var selectedGistNames = [];    // empty = all Gist Account Owners
+var renderToken = 0;
+
+var liveDataPromise = null;
+var liveResolved = null;
+var fieldInfo = null;
+var amountUnitInUse = "rupees";
+var paymentAmountUnitInUse = "rupees";
+var callsCache = {};
+var aorLive = null;
+var aorGistExpanded = false;
+
+populateQuarterFilter();
+
+var lastClickY = 0;
+document.addEventListener("click", function(event) { lastClickY = event.pageY || 0; }, true);
+
+ZOHO.embeddedApp.on("PageLoad", function() { loadReport(); });
+ZOHO.embeddedApp.init();
 
 
-    /*
-     ============================================================
-     SHOW ERROR
-     ============================================================
-    */
+function normStage(stage) {
+    return String(stage || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
 
-    function showError(message) {
 
-        const box = document.getElementById("errorBox");
+/* =========================================================
+   FILTERS
+   ========================================================= */
 
-        box.style.display = "block";
+function populateQuarterFilter() {
+    var select = document.getElementById("quarterFilter");
+    var html = '<option value="' + ALL_QUARTERS + '">All Quarters (1 Apr ' + FY_START_YEAR +
+        ' - 31 Mar ' + (FY_START_YEAR + 1) + ')</option>';
+    QUARTERS.forEach(function(q) {
+        html += '<option value="' + q + '">' + q + ' (' + QUARTER_INFO[q].range + ')</option>';
+    });
+    select.innerHTML = html;
+}
 
-        box.innerText = message;
+
+function populateOwnerFilter() {
+    document.getElementById("currentUserLabel").innerText = personalScope ? personalScope.label :
+        (currentUser ? currentUser.name : "Identifying you...");
+}
+
+
+/* Fixed to the logged-in user; there is no owner dropdown in this version */
+function effectiveOwnerNames() {
+    return personalScope ? personalScope.ownerNames.slice() : [];
+}
+
+
+function ownersLabel() {
+    return personalScope ? personalScope.label : "";
+}
+
+
+function getCurrentUserSafe() {
+    return ZOHO.CRM.CONFIG.getCurrentUser().then(function(data) {
+        var u = (data && data.users && data.users[0]) || {};
+        var name = u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || u.name || "";
+        if (!u.id || !name) throw new Error("Could not identify the logged-in user.");
+        return { id: String(u.id), name: name.trim() };
+    });
+}
+
+
+/*
+ * Account owner  -> sees their own accounts and deals.
+ * Gist Account Owner (name appears as a Gist Account Owner on GIST HQ accounts and the
+ * user owns no accounts) -> sees GIST HQ accounts where they are the Gist Account Owner.
+ */
+function resolvePersonalScope(live) {
+    var lower = currentUser.name.toLowerCase();
+    var ownsAccounts = !!live.ownerIdByName[lower];
+    var gistMatch = live.gistValues.filter(function(v) {
+        return v !== GIST_NOT_ASSIGNED && v.trim().toLowerCase() === lower;
+    });
+
+    if (!ownsAccounts && gistMatch.length) {
+        return { ownerNames: [GIST_HQ_OWNER_NAME], gist: gistMatch, mode: "gist",
+                 label: currentUser.name + " (Gist Account Owner)" };
+    }
+    return { ownerNames: [currentUser.name], gist: [], mode: "owner", label: currentUser.name };
+}
+
+
+function isGistHqName(name) {
+    return String(name || "").trim().toLowerCase() === GIST_HQ_OWNER_NAME.toLowerCase();
+}
+
+
+function gistFilterVisible() {
+    return false;   // Gist selection is fixed by the logged-in user in this version
+}
+
+
+function gistSelectionLabel(names) {
+    if (!names || !names.length) return "All Gist Account Owners";
+    if (names.length <= 2) return names.join(", ");
+    return names.length + " Gist account owners";
+}
+
+
+function populateGistOwnerFilter() {
+
+    var group = document.getElementById("gistFilterGroup");
+    var menu = document.getElementById("gistMultiMenu");
+    var showGist = gistFilterVisible();
+
+    group.classList.toggle("hidden", !showGist);
+
+    var values = liveResolved ? liveResolved.gistValues : [];
+
+    // Drop selections that no longer exist
+    if (liveResolved) selectedGistNames = selectedGistNames.filter(function(n) { return values.indexOf(n) !== -1; });
+
+    var html = '<label class="multi-option all"><input type="checkbox" value="__all__" onchange="onGistCheckbox(this)"' +
+        (selectedGistNames.length === 0 ? ' checked' : '') + '> All Gist Account Owners</label>';
+
+    if (!liveResolved) html += '<div class="multi-option">Loading names...</div>';
+    else if (values.length === 0) html += '<div class="multi-option">No Gist Account Owner values found</div>';
+
+    values.forEach(function(name, i) {
+        html += '<label class="multi-option"><input type="checkbox" data-index="' + i + '" onchange="onGistCheckbox(this)"' +
+            (selectedGistNames.indexOf(name) !== -1 ? ' checked' : '') + '> ' + escapeHtml(name) + '</label>';
+    });
+
+    menu.innerHTML = html;
+    document.getElementById("gistMultiButton").innerHTML = escapeHtml(gistSelectionLabel(selectedGistNames)) + ' &#9662;';
+}
+
+
+function toggleGistMenu(event) {
+    if (event) event.stopPropagation();
+    document.getElementById("gistMulti").classList.toggle("open");
+}
+
+
+document.addEventListener("click", function(event) {
+    var box = document.getElementById("gistMulti");
+    if (box && !box.contains(event.target)) box.classList.remove("open");
+});
+
+
+function onGistCheckbox(input) {
+
+    var values = liveResolved ? liveResolved.gistValues : [];
+
+    if (input.value === "__all__") {
+        selectedGistNames = [];
+    } else {
+        var name = values[Number(input.getAttribute("data-index"))];
+        if (input.checked) {
+            if (name && selectedGistNames.indexOf(name) === -1) selectedGistNames.push(name);
+        } else {
+            selectedGistNames = selectedGistNames.filter(function(n) { return n !== name; });
+        }
     }
 
+    selectedGistNames = values.filter(function(n) { return selectedGistNames.indexOf(n) !== -1; });
+    if (values.length && selectedGistNames.length === values.length) selectedGistNames = [];
 
-    /*
-     ============================================================
-     FETCH ANURAG ACCOUNTS
-     ============================================================
-    */
+    renderAll();
+    document.getElementById("gistMulti").classList.add("open");
+}
 
-    async function fetchAnuragAccounts() {
 
-        let accounts = [];
+/* Array of selected Gist Account Owner names; empty = no Gist filter */
+function currentGistSelection() {
+    return personalScope ? personalScope.gist.slice() : [];
+}
 
-        let page = 1;
 
-        while (true) {
+function currentQuarterSelection() {
+    return document.getElementById("quarterFilter").value || ALL_QUARTERS;
+}
 
-            console.log("Fetching Accounts page:", page);
 
-            const response = await ZOHO.CRM.API.searchRecord({
-                Entity: "Accounts",
-                Type: "criteria",
-                Query: "(Owner.name:equals:" + ACCOUNT_OWNER + ")",
-                page: page,
-                per_page: 200
+function periodLabel(selectedQuarter) {
+    if (!selectedQuarter || selectedQuarter === ALL_QUARTERS) return FY_LONG_LABEL;
+    return FY_LONG_LABEL + ", " + selectedQuarter + " (" + QUARTER_INFO[selectedQuarter].range + ")";
+}
+
+
+function currentFyQuarter() {
+    var today = new Date();
+    if (today < FY_START) return "Q1";
+    if (today > FY_END) return "Q4";
+    return monthQuarter(today);
+}
+
+
+/* =========================================================
+   SALES TEAM TARGETS
+   ========================================================= */
+
+function teamFyTarget(row) {
+    if (typeof row.fy === "number") return row.fy;
+    return (row.q || []).reduce(function(s, v) { return s + Number(v || 0); }, 0);
+}
+
+
+function teamQuarterTarget(row, quarter) {
+    return Number((row.q || [])[QUARTERS.indexOf(quarter)] || 0);
+}
+
+
+function teamTarget(row, selectedQuarter) {
+    return (!selectedQuarter || selectedQuarter === ALL_QUARTERS) ? teamFyTarget(row) : teamQuarterTarget(row, selectedQuarter);
+}
+
+
+function gistNameMatchesKeywords(name, keywords) {
+    var lower = String(name || "").toLowerCase();
+    return (keywords || []).some(function(k) { return k && lower.indexOf(String(k).trim().toLowerCase()) !== -1; });
+}
+
+
+function teamMatchesAccount(row, account) {
+    var owner = account.ownerName.trim().toLowerCase();
+    if ((row.owners || []).some(function(o) { return o.trim().toLowerCase() === owner; })) return true;
+    if (isGistHqName(account.ownerName) && (row.gist || []).length) {
+        return account.gistNames.some(function(n) { return gistNameMatchesKeywords(n, row.gist); });
+    }
+    return false;
+}
+
+
+function assignTeam(account) {
+    for (var i = 0; i < SALES_TEAM_TARGETS.length; i++) {
+        if (teamMatchesAccount(SALES_TEAM_TARGETS[i], account)) return i;
+    }
+    return -1;
+}
+
+
+/* Which target rows belong to the selected owners / Gist filter */
+function teamRowsInScope(ownerNames, gistSelection) {
+
+    var names = (ownerNames || []).map(function(n) { return n.trim().toLowerCase(); });
+    var includesGist = (ownerNames || []).some(isGistHqName);
+
+    return SALES_TEAM_TARGETS.map(function(row, index) { return { row: row, index: index }; }).filter(function(item) {
+
+        var row = item.row;
+
+        if ((row.owners || []).some(function(o) { return names.indexOf(o.trim().toLowerCase()) !== -1; })) return true;
+
+        if (includesGist && (row.gist || []).length) {
+            if (!gistSelection || !gistSelection.length) return true;
+            return gistSelection.some(function(name) {
+                return name !== GIST_NOT_ASSIGNED && gistNameMatchesKeywords(name, row.gist);
             });
-
-            console.log("Accounts response page", page, response);
-
-            if (!response || !response.data) {
-                break;
-            }
-
-            accounts = accounts.concat(response.data);
-
-            if (
-                !response.info ||
-                response.info.more_records !== true
-            ) {
-                break;
-            }
-
-            page++;
-
-            if (page > 100) {
-                console.warn("Account pagination stopped at 100 pages.");
-                break;
-            }
         }
 
+        return false;
+    });
+}
 
-        /*
-         Remove duplicate Account IDs
-        */
 
-        const uniqueAccounts = new Map();
+/* =========================================================
+   LOAD
+   Everything is calculated live from Deals, Accounts and Calls.
+   ========================================================= */
 
-        accounts.forEach(account => {
+function loadReport() {
 
-            if (!account || !account.id) {
-                return;
-            }
+    var button = document.getElementById("refreshButton");
 
-            uniqueAccounts.set(
-                String(account.id),
-                account
-            );
+    button.disabled = true;
+    button.innerText = "Loading...";
 
+    liveDataPromise = null;
+    liveResolved = null;
+    callsCache = {};
+    aorGistExpanded = false;
+
+    personalScope = null;
+    document.getElementById("content").innerHTML = '<div class="loading">Loading your dashboard...</div>';
+
+    (currentUser ? Promise.resolve(currentUser) : getCurrentUserSafe())
+        .then(function(user) {
+            currentUser = user;
+            populateOwnerFilter();
+            return loadLiveData();
+        })
+        .then(function(live) {
+            personalScope = resolvePersonalScope(live);
+            populateOwnerFilter();
+            renderAll();
+        })
+        .then(function() {
+            var now = new Date();
+            document.getElementById("lastUpdated").innerText = "Last Updated: " +
+                now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + " " +
+                now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+        })
+        .catch(function(err) {
+            console.error("My dashboard load error:", err);
+            document.getElementById("content").innerHTML = '<div class="error">' +
+                escapeHtml((err && err.message) || "Could not load your dashboard. Click Refresh to try again.") + '</div>';
+        })
+        .finally(function() {
+            button.disabled = false;
+            button.innerText = "Refresh";
+        });
+}
+
+
+/* =========================================================
+   LIVE DEALS + ACCOUNTS
+   ========================================================= */
+
+function loadLiveData() {
+
+    if (!liveDataPromise) {
+
+        liveDataPromise = Promise.all([
+            getFieldsSafe("Deals"),
+            getFieldsSafe("Accounts"),
+            zohoSearchAll("Deals", null),
+            zohoSearchAll("Accounts", null)
+        ]).then(function(results) {
+            liveResolved = buildLiveData(results[0], results[1], results[2] || [], results[3] || []);
+            return liveResolved;
         });
 
-
-        return Array.from(uniqueAccounts.values());
+        liveDataPromise.catch(function() { liveDataPromise = null; });
     }
 
-
-    /*
-     ============================================================
-     FETCH DEALS
-     ============================================================
-    */
-
-    async function fetchDeals() {
-
-        let deals = [];
-
-        let page = 1;
-
-        while (true) {
-
-            console.log("Fetching Deals page:", page);
-
-            const response = await ZOHO.CRM.API.getAllRecords({
-                Entity: "Deals",
-                sort_order: "desc",
-                sort_by: "Created_Time",
-                page: page,
-                per_page: 200
-            });
-
-            console.log("Deals response page", page, response);
-
-            if (!response || !response.data) {
-                break;
-            }
-
-            deals = deals.concat(response.data);
+    return liveDataPromise;
+}
 
 
-            /*
-             Check pagination.
-            */
-
-            if (
-                !response.info ||
-                response.info.more_records !== true
-            ) {
-                break;
-            }
-
-            page++;
-
-            if (page > 100) {
-                console.warn("Deal pagination stopped at 100 pages.");
-                break;
-            }
-        }
-
-
-        return deals;
+function getFieldsSafe(entity) {
+    try {
+        if (!ZOHO.CRM.META || !ZOHO.CRM.META.getFields) return Promise.resolve([]);
+        return ZOHO.CRM.META.getFields({ Entity: entity })
+            .then(function(response) {
+                var fields = response && (response.fields || response.data);
+                return Array.isArray(fields) ? fields : [];
+            })
+            .catch(function() { return []; });
+    } catch (e) {
+        return Promise.resolve([]);
     }
+}
 
 
-    /*
-     ============================================================
-     CHECK TARGET YEAR
-     ============================================================
-    */
-
-    function isTargetYearDeal(deal) {
-
-        if (!deal) {
-            return false;
-        }
-
-        const yearValue = deal[DEAL_YEAR_FIELD];
-
-        if (
-            yearValue === null ||
-            yearValue === undefined
-        ) {
-            return false;
-        }
-
-        const year = String(yearValue).trim();
-
-        return year === TARGET_DEAL_YEAR;
+function fieldValueList(value) {
+    if (value === undefined || value === null || value === "") return [];
+    if (Array.isArray(value)) {
+        var out = [];
+        value.forEach(function(v) { out = out.concat(fieldValueList(v)); });
+        return out;
     }
-
-
-    /*
-     ============================================================
-     CHECK DEAL OWNER
-     ============================================================
-    */
-
-    function isAnuragDeal(deal) {
-
-        if (!deal || !deal.Owner) {
-            return false;
-        }
-
-        const ownerName = deal.Owner.name;
-
-        if (!ownerName) {
-            return false;
-        }
-
-        return String(ownerName).trim().toLowerCase()
-            === DEAL_OWNER.trim().toLowerCase();
+    if (typeof value === "object") {
+        var text = value.name || value.display_value || value.value || value.full_name || "";
+        return String(text).trim() ? [String(text).trim()] : [];
     }
+    var s = String(value).trim();
+    return s ? [s] : [];
+}
 
 
-    /*
-     ============================================================
-     BUILD UNIQUE DEAL ACCOUNT SET
-     ============================================================
-    */
-
-    function buildDealAccountSet(
-        deals,
-        anuragAccountIds
-    ) {
-
-        const result = new Set();
-
-        let ownerDeals = 0;
-
-        let ownerYearDeals = 0;
-
-        let ownerYearDealsWithAccount = 0;
-
-        let matchingAccounts = 0;
+function fieldValueText(value) {
+    return fieldValueList(value).join(", ");
+}
 
 
-        deals.forEach(deal => {
-
-            if (!deal) {
-                return;
-            }
-
-
-            /*
-             STEP 1
-             Deal Owner must be Anurag Mishra
-            */
-
-            if (!isAnuragDeal(deal)) {
-                return;
-            }
-
-            ownerDeals++;
+function parseNumber(value) {
+    if (value && typeof value === "object") value = value.value !== undefined ? value.value : value.amount;
+    if (value === undefined || value === null || value === "" || typeof value === "boolean") return 0;
+    var parsed = Number(String(value).replace(/,/g, "").replace(/[₹$\s]|Rs\.?|INR/gi, ""));
+    return isNaN(parsed) ? 0 : parsed;
+}
 
 
-            /*
-             STEP 2
-             Deal Year must be 2026-2027
-            */
+function fieldOptions(meta, records) {
+    var options = [];
+    var seen = {};
 
-            if (!isTargetYearDeal(deal)) {
-                return;
-            }
+    (meta || []).forEach(function(f) {
+        if (!f || !f.api_name || seen[f.api_name]) return;
+        seen[f.api_name] = true;
+        options.push({ api: f.api_name, label: f.field_label || f.api_name, type: String(f.data_type || "").toLowerCase() });
+    });
 
-            ownerYearDeals++;
-
-
-            /*
-             STEP 3
-             Deal must have Account_Name
-            */
-
-            if (
-                !deal.Account_Name ||
-                !deal.Account_Name.id
-            ) {
-                return;
-            }
-
-            ownerYearDealsWithAccount++;
-
-
-            /*
-             STEP 4
-             Get Account ID from Deal.Account_Name.id
-            */
-
-            const accountId =
-                String(deal.Account_Name.id);
-
-
-            /*
-             STEP 5
-             Make sure this Account belongs
-             to Anurag Mishra.
-            */
-
-            if (!anuragAccountIds.has(accountId)) {
-                return;
-            }
-
-            matchingAccounts++;
-
-
-            /*
-             STEP 6
-             Add to Set.
-             Therefore multiple deals for the
-             same account count only once.
-            */
-
-            result.add(accountId);
-
+    (records || []).slice(0, 300).forEach(function(r) {
+        Object.keys(r || {}).forEach(function(k) {
+            if (seen[k]) return;
+            seen[k] = true;
+            options.push({ api: k, label: k, type: "" });
         });
+    });
+
+    return options;
+}
 
 
-        return {
-            set: result,
+function optionText(o) {
+    return (o.label + " " + o.api.replace(/_/g, " ")).toLowerCase();
+}
 
-            ownerDeals: ownerDeals,
 
-            ownerYearDeals: ownerYearDeals,
+function describeField(api, options, found) {
+    for (var i = 0; i < options.length; i++) {
+        if (options[i].api === api) return { api: api, label: options[i].label, found: !!found };
+    }
+    return { api: api, label: api, found: !!found };
+}
 
-            ownerYearDealsWithAccount:
-                ownerYearDealsWithAccount,
 
-            matchingAccounts: matchingAccounts
+function pickByTiers(options, tiers, scoreFn) {
+    for (var t = 0; t < tiers.length; t++) {
+        var best = null;
+        var bestScore = 0;
+        options.forEach(function(o) {
+            if (!tiers[t](o)) return;
+            var score = scoreFn(o.api);
+            if (score > bestScore) { best = o; bestScore = score; }
+        });
+        if (best) return { api: best.api, label: best.label, found: true };
+    }
+    return null;
+}
+
+
+function countNonEmpty(records, api) {
+    var n = 0;
+    records.forEach(function(r) { if (fieldValueList(r[api]).length) n++; });
+    return n;
+}
+
+
+function countNonZero(records, api) {
+    var n = 0;
+    records.forEach(function(r) { if (parseNumber(r[api]) !== 0) n++; });
+    return n;
+}
+
+
+function countDealTypeMatches(records, api) {
+    var n = 0;
+    records.forEach(function(r) { if (valueIsNewDealType(r[api])) n++; });
+    return n;
+}
+
+
+function valueIsNewDealType(value) {
+    var wanted = DEAL_TYPE_VALUES.map(function(v) { return v.trim().toLowerCase(); });
+    return fieldValueList(value).some(function(v) { return wanted.indexOf(v.trim().toLowerCase()) !== -1; });
+}
+
+
+function chooseDetailField(explicit, patterns, dealOptions, deals, accountOptions, accounts) {
+    var tiers = patterns.map(function(re) { return function(o) { return re.test(optionText(o)); }; });
+    if (explicit) {
+        var onDeals = dealOptions.some(function(o) { return o.api === explicit; });
+        return { module: onDeals ? "Deals" : "Accounts", api: explicit, label: explicit, found: true };
+    }
+    var d = pickByTiers(dealOptions, tiers, function(api) { return countNonEmpty(deals, api) || 0.5; });
+    if (d) return { module: "Deals", api: d.api, label: d.label, found: true };
+    var a = pickByTiers(accountOptions, tiers, function(api) { return countNonEmpty(accounts, api) || 0.5; });
+    if (a) return { module: "Accounts", api: a.api, label: a.label, found: true };
+    return { module: "", api: "", label: "", found: false };
+}
+
+
+function chooseDateField(explicit, patterns, fallbackApi, options, deals) {
+    if (explicit) return describeField(explicit, options, true);
+    var tiers = patterns.map(function(re) { return function(o) { return re.test(optionText(o)); }; });
+    var picked = pickByTiers(options, tiers, function(api) { return countNonEmpty(deals, api); });
+    if (picked) return picked;
+    for (var i = 0; i < options.length; i++) {
+        if (patterns[0].test(optionText(options[i]))) return { api: options[i].api, label: options[i].label, found: true };
+    }
+    return describeField(fallbackApi, options, false);
+}
+
+
+function chooseYearField(options, deals) {
+    if (DEAL_FIELDS.year) return describeField(DEAL_FIELDS.year, options, true);
+    return pickByTiers(options, [
+        function(o) { return o.api === "Year2"; },
+        function(o) { return /\bdeal year\b|\bfiscal year\b|\bfinancial year\b|\bfy\b/.test(optionText(o)); },
+        function(o) { return /\byear\b/.test(optionText(o)) && o.type !== "date" && o.type !== "datetime"; }
+    ], function(api) { return countNonEmpty(deals, api); }) || describeField("Year2", options, false);
+}
+
+
+var NOT_AMOUNT_WORDS = /probab|percent|discount|tax|qty|quantity|days|score|phone|mobile|pin ?code|zip|year|count|rating|number of|no of|exchange rate|\bid\b/;
+
+function isAmountLike(o) {
+    var numericTypes = ["currency", "double", "integer", "bigint", "formula", "decimal", "long", ""];
+    return numericTypes.indexOf(o.type) !== -1 && !NOT_AMOUNT_WORDS.test(optionText(o));
+}
+
+
+function chooseAmountField(options, deals) {
+    if (DEAL_FIELDS.amount) return describeField(DEAL_FIELDS.amount, options, true);
+    var picked = pickByTiers(options, [
+        function(o) { return /expected ?business/.test(optionText(o)); }
+    ], function(api) { return countNonZero(deals, api); });
+    if (picked) return picked;
+    for (var i = 0; i < options.length; i++) {
+        if (/expected ?business/.test(optionText(options[i]))) return { api: options[i].api, label: options[i].label, found: true };
+    }
+    return pickByTiers(options, [
+        function(o) { return o.api === "Amount"; },
+        function(o) { return isAmountLike(o) && /business|lakh|amount|value|revenue/.test(optionText(o)); }
+    ], function(api) { return countNonZero(deals, api); }) || describeField("Amount", options, false);
+}
+
+
+function choosePlanField(options, deals) {
+    if (DEAL_FIELDS.plan) return describeField(DEAL_FIELDS.plan, options, true);
+    return pickByTiers(options, [
+        function(o) { return o.api === "Deal_Category"; },
+        function(o) { return /\bplan\b/.test(optionText(o)); },
+        function(o) { return /categor/.test(optionText(o)); }
+    ], function(api) { return countNonEmpty(deals, api); }) || describeField("Deal_Category", options, false);
+}
+
+
+function chooseProductField(options, deals) {
+    if (DEAL_FIELDS.product) return describeField(DEAL_FIELDS.product, options, true);
+    return pickByTiers(options, [
+        function(o) { return o.api === "Product" || o.api === "Product_Name"; },
+        function(o) { return /\bproducts?\b/.test(optionText(o)) && !/amount|price|qty|quantity|code|\bid\b/.test(optionText(o)); }
+    ], function(api) { return countNonEmpty(deals, api); }) || describeField("Product", options, false);
+}
+
+
+function chooseDealTypeField(options, deals) {
+    if (DEAL_FIELDS.dealType) return describeField(DEAL_FIELDS.dealType, options, true);
+    return pickByTiers(options, [
+        function(o) { return /deal ?type/.test(optionText(o)); },
+        function(o) { return o.api === "Type"; },
+        function(o) { return /\btype\b/.test(optionText(o)); }
+    ], function(api) { return countDealTypeMatches(deals, api); }) || describeField("Type", options, false);
+}
+
+
+function chooseGistField(options, accounts) {
+    if (ACCOUNT_GIST_FIELD) return describeField(ACCOUNT_GIST_FIELD, options, true);
+    return pickByTiers(options, [
+        function(o) { return /gist.*account.*owner/.test(optionText(o)); },
+        function(o) { return /gist.*owner/.test(optionText(o)); },
+        function(o) { return /gist/.test(optionText(o)) && !/bucket/.test(optionText(o)); }
+    ], function(api) { return countNonEmpty(accounts, api); }) || describeField("GIST_Account_Owner", options, false);
+}
+
+
+function buildLiveData(dealMeta, accountMeta, deals, accounts) {
+
+    var dealOptions = fieldOptions(dealMeta, deals);
+    var accountOptions = fieldOptions(accountMeta, accounts);
+
+    fieldInfo = {};
+    fieldInfo.expectedOrderDate = chooseDateField(DEAL_FIELDS.expectedOrderDate,
+        [/expected order date/, /expected.*order.*date/], "Expected_Order_Date", dealOptions, deals);
+    fieldInfo.actualOrderDate = chooseDateField(DEAL_FIELDS.actualOrderDate,
+        [/actual order date/, /actual.*order.*date/], "Actual_Order_Date", dealOptions, deals);
+    fieldInfo.paymentDate = chooseDateField(DEAL_FIELDS.paymentDate,
+        [/payment receiv(ing|ed) date/, /payment.*date/], "Payment_Receiving_Date", dealOptions, deals);
+    fieldInfo.closingDate = DEAL_FIELDS.closingDate
+        ? describeField(DEAL_FIELDS.closingDate, dealOptions, true)
+        : (function() {
+            var std = describeField("Closing_Date", dealOptions, true);
+            var exists = dealOptions.some(function(o) { return o.api === "Closing_Date"; });
+            return exists ? std : chooseDateField("", [/^closing date\b/, /\bclosing date\b/], "Closing_Date", dealOptions, deals);
+        })();
+    fieldInfo.year = chooseYearField(dealOptions, deals);
+    fieldInfo.dealType = chooseDealTypeField(dealOptions, deals);
+
+    var fyDeals = deals.filter(function(d) { return dealFiscalYear(d) === FY_FILTER && dealTypeOk(d); });
+    var scope = fyDeals.length ? fyDeals : deals;
+
+    fieldInfo.amount = chooseAmountField(dealOptions, scope);
+    fieldInfo.plan = choosePlanField(dealOptions, scope);
+    fieldInfo.product = chooseProductField(dealOptions, scope);
+
+    var gistHqAccounts = accounts.filter(function(a) { return isGistHqName(ddLookupName(a.Owner, "")); });
+    fieldInfo.gist = chooseGistField(accountOptions, gistHqAccounts.length ? gistHqAccounts : accounts);
+
+    // Extra columns for the top-card detail popups (Deals first, then Accounts)
+    fieldInfo.ouCode = chooseDetailField(DETAIL_FIELDS.ouCode, [/\bou code\b/, /\bou\b/], dealOptions, deals, accountOptions, accounts);
+    fieldInfo.subStartDate = chooseDetailField(DETAIL_FIELDS.subStartDate,
+        [/sub(scription)? start date/, /sub(scription)?.*start/], dealOptions, deals, accountOptions, accounts);
+
+    amountUnitInUse = decideAmountUnit(scope);
+
+    fieldInfo.paymentAmount = DEAL_FIELDS.paymentAmount
+        ? describeField(DEAL_FIELDS.paymentAmount, dealOptions, true)
+        : (pickByTiers(dealOptions, [
+              function(o) { return /payment receiv(ed|ing) amount/.test(optionText(o)); },
+              function(o) { return /payment.*amount|received amount/.test(optionText(o)); }
+          ], function(api) { return countNonZero(scope, api) || 0.5; }) || describeField("Payment_Received_Amount", dealOptions, false));
+    paymentAmountUnitInUse = decideUnitForField(fieldInfo.paymentAmount, scope);
+
+    var scopedAccountIds = {};
+    deals.forEach(function(d) {
+        if (!dealTypeOk(d)) return;
+        var accId = ddLookupId(d.Account_Name);
+        if (accId) scopedAccountIds[accId] = true;
+    });
+
+    var accountsById = {};
+    var ownerIdByName = {};
+    var gistSet = {};
+    var gistHasEmpty = false;
+    var teamAccountCounts = SALES_TEAM_TARGETS.map(function() { return 0; });
+
+    accounts.forEach(function(a) {
+
+        if (!a.id) return;
+
+        var ownerName = ddLookupName(a.Owner, "Unassigned");
+        var ownerId = ddLookupId(a.Owner);
+        var gistNames = fieldValueList(a[fieldInfo.gist.api]);
+
+        var account = {
+            id: String(a.id),
+            name: a.Account_Name || "(Unnamed Account)",
+            ownerId: ownerId,
+            ownerName: ownerName,
+            bucket: fieldValueText(a.Bucket_Type) || "No Bucket",
+            gistNames: gistNames,
+            inScope: !!scopedAccountIds[String(a.id)],
+            raw: a
         };
+
+        account.teamIndex = assignTeam(account);
+        if (account.teamIndex >= 0) teamAccountCounts[account.teamIndex]++;
+
+        accountsById[account.id] = account;
+
+        if (ownerId) ownerIdByName[ownerName.trim().toLowerCase()] = ownerId;
+
+        if (isGistHqName(ownerName)) {
+            if (gistNames.length === 0) gistHasEmpty = true;
+            gistNames.forEach(function(n) { gistSet[n] = true; });
+        }
+    });
+
+    var gistValues = Object.keys(gistSet).sort(function(a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
+    if (gistHasEmpty) gistValues.push(GIST_NOT_ASSIGNED);
+
+    var outsideWindow = fyDeals.filter(function(d) {
+        return !isRemovedStage(d.Stage) && !stageDateQuarter(d);
+    }).length;
+
+    var newDealsByAccount = {};
+    deals.forEach(function(d) {
+        if (!dealTypeOk(d)) return;
+        var accId = ddLookupId(d.Account_Name);
+        if (!accId) return;
+        (newDealsByAccount[accId] = newDealsByAccount[accId] || []).push(d);
+    });
+
+    return {
+        deals: deals,
+        newDealsByAccount: newDealsByAccount,
+        accountsById: accountsById,
+        ownerIdByName: ownerIdByName,
+        gistValues: gistValues,
+        gistHqAccountCount: gistHqAccounts.length,
+        teamAccountCounts: teamAccountCounts,
+        yearDealCount: deals.filter(function(d) { return dealFiscalYear(d) === FY_FILTER; }).length,
+        fyDealCount: fyDeals.length,
+        outsideWindow: outsideWindow
+    };
+}
+
+
+function dealHasExcludedProduct(deal) {
+    var excluded = EXCLUDED_PRODUCTS.map(function(p) { return p.trim().toLowerCase(); });
+    return fieldValueList(deal[fieldInfo.product.api]).some(function(p) { return excluded.indexOf(p.trim().toLowerCase()) !== -1; });
+}
+
+
+function dealTypeOk(deal) {
+    if (!fieldInfo.dealType.found) return true;   // field not found: don't hide everything, a warning is shown
+    return valueIsNewDealType(deal[fieldInfo.dealType.api]);
+}
+
+
+function rawDealAmount(deal) {
+    return parseNumber(deal ? deal[fieldInfo.amount.api] : null);
+}
+
+
+function decideAmountUnit(deals) {
+
+    if (AMOUNT_UNIT === "lakh" || AMOUNT_UNIT === "rupees") return AMOUNT_UNIT;
+    if (/lakh|\blac\b/i.test(fieldInfo.amount.label + " " + fieldInfo.amount.api)) return "lakh";
+
+    var values = [];
+    deals.forEach(function(deal) {
+        var v = Math.abs(rawDealAmount(deal));
+        if (v) values.push(v);
+    });
+
+    if (values.length === 0) return "rupees";
+
+    values.sort(function(a, b) { return a - b; });
+    return values[Math.floor(values.length / 2)] < 1000 ? "lakh" : "rupees";
+}
+
+
+function decideUnitForField(field, deals) {
+    if (AMOUNT_UNIT === "lakh" || AMOUNT_UNIT === "rupees") return AMOUNT_UNIT;
+    if (/lakh|\blac\b/i.test(field.label + " " + field.api)) return "lakh";
+    var values = [];
+    deals.forEach(function(deal) {
+        var v = Math.abs(parseNumber(deal[field.api]));
+        if (v) values.push(v);
+    });
+    if (!values.length) return "rupees";
+    values.sort(function(a, b) { return a - b; });
+    return values[Math.floor(values.length / 2)] < 1000 ? "lakh" : "rupees";
+}
+
+
+function paymentAmountLakh(deal) {
+    var raw = parseNumber(deal ? deal[fieldInfo.paymentAmount.api] : null);
+    return paymentAmountUnitInUse === "lakh" ? raw : raw / 100000;
+}
+
+
+function dealAmountLakh(deal) {
+    var raw = rawDealAmount(deal);
+    return amountUnitInUse === "lakh" ? raw : raw / 100000;
+}
+
+
+function dealPlanName(deal) {
+    return fieldValueText(deal ? deal[fieldInfo.plan.api] : null) || "No Plan";
+}
+
+
+function dealFiscalYear(deal) {
+
+    var value = fieldValueText(deal ? deal[fieldInfo.year.api] : null);
+
+    if (value) {
+        value = value.replace(/^FY\s*/i, "").replace(/\s+/g, "");
+        var full = value.match(/^(\d{4})[-\/](\d{4})$/);
+        if (full) return full[1] + "-" + full[2];
+        var shortEnd = value.match(/^(\d{4})[-\/](\d{2})$/);
+        if (shortEnd) return shortEnd[1] + "-" + (Number(shortEnd[1]) + 1);
+        var bothShort = value.match(/^(\d{2})[-\/](\d{2})$/);
+        if (bothShort) return "20" + bothShort[1] + "-20" + bothShort[2];
+        return value;
     }
 
-
-    /*
-     ============================================================
-     RENDER KPI
-     ============================================================
-    */
-
-    function renderKPI() {
-
-        const totalAccounts =
-            allAccounts.length;
-
-        const withDeal =
-            dealAccountIds.size;
-
-        const noDeal =
-            totalAccounts - withDeal;
+    var date = ddParseDate(deal && deal[fieldInfo.closingDate.api]);
+    if (!date) return "";
+    var year = date.getFullYear();
+    return (date.getMonth() >= 3) ? (year + "-" + (year + 1)) : ((year - 1) + "-" + year);
+}
 
 
-        /*
-         IMPORTANT:
-         These values are intentionally NOT swapped.
-        */
-
-        document.getElementById(
-            "totalAccounts"
-        ).innerText = totalAccounts;
+function isInFyWindow(date) {
+    return !!date && date >= FY_START && date <= FY_END;
+}
 
 
-        document.getElementById(
-            "dealAccounts"
-        ).innerText = withDeal;
+function fyQuarterOf(value) {
+    var date = ddParseDate(value);
+    return isInFyWindow(date) ? monthQuarter(date) : null;
+}
 
 
-        document.getElementById(
-            "noDealAccounts"
-        ).innerText = noDeal;
+/* FY quarter of each deal date (null when blank or outside the FY) */
+function dealDateQuarters(deal) {
+    return {
+        expected: fyQuarterOf(deal[fieldInfo.expectedOrderDate.api]),
+        actual: fyQuarterOf(deal[fieldInfo.actualOrderDate.api]),
+        payment: fyQuarterOf(deal[fieldInfo.paymentDate.api]),
+        closing: fyQuarterOf(deal[fieldInfo.closingDate.api])
+    };
+}
 
 
-        document.getElementById(
-            "noDealCount"
-        ).innerText = noDeal;
+/* Quarter from the date that matches the deal's stage */
+function stageDateQuarter(deal, quarters) {
+    quarters = quarters || dealDateQuarters(deal);
+    if (isRemovedStage(deal.Stage)) return null;
+    if (isClosedWonStage(deal.Stage)) return quarters.actual;
+    if (isClosedLostStage(deal.Stage)) return quarters.closing;
+    return quarters.expected;
+}
 
+
+function stageDateName(stage) {
+    if (isClosedWonStage(stage)) return "Actual Order Date";
+    if (isClosedLostStage(stage)) return "Closing Date";
+    return "Expected Order Date";
+}
+
+
+/* =========================================================
+   DEAL RULES
+   ========================================================= */
+
+function stageGroupOf(stage) {
+    var key = normStage(stage);
+    if (REMOVED_STAGE_KEYS.indexOf(key) !== -1) return null;
+    return STAGE_TO_GROUP[key] || String(stage || "").trim() || "Unknown";
+}
+
+
+function isRemovedStage(stage) {
+    return REMOVED_STAGE_KEYS.indexOf(normStage(stage)) !== -1;
+}
+
+
+function isClosedWonStage(stage) {
+    return CLOSED_WON_KEYS.indexOf(normStage(stage)) !== -1;
+}
+
+
+function isClosedLostStage(stage) {
+    return CLOSED_LOST_KEYS.indexOf(normStage(stage)) !== -1;
+}
+
+
+/* Open = not Closed Won, not Closed Lost, not removed (Order Booked is open) */
+function isOpenStage(stage) {
+    return !isClosedWonStage(stage) && !isClosedLostStage(stage) && !isRemovedStage(stage);
+}
+
+
+function isExcludedTestDeal(deal) {
+    var name = String((deal && deal.Deal_Name) || "").toLowerCase();
+    return EXCLUDED_DEAL_NAME_WORDS.some(function(word) { return name.indexOf(word) !== -1; });
+}
+
+
+function hasExcludedProduct(ctx) {
+    var excluded = EXCLUDED_PRODUCTS.map(function(p) { return p.trim().toLowerCase(); });
+    return ctx.products.some(function(p) { return excluded.indexOf(p.trim().toLowerCase()) !== -1; });
+}
+
+
+/* gistSelection = array of Gist Account Owner names; empty = no filter */
+function accountMatchesGist(account, gistSelection) {
+    if (!gistSelection || !gistSelection.length) return true;
+    if (!account) return false;
+    if (gistSelection.indexOf(GIST_NOT_ASSIGNED) !== -1 && account.gistNames.length === 0) return true;
+    return account.gistNames.some(function(n) { return gistSelection.indexOf(n) !== -1; });
+}
+
+
+/*
+ * Every number on the dashboard starts here: Deal Year, Deal Type = New,
+ * linked account, Gist filter and quarter.
+ * cardMode = true skips the "Expected Order Date inside the FY" check (top cards).
+ */
+function dealContext(deal, live, selectedQuarter, gistSelection, cardMode) {
+
+    if (dealFiscalYear(deal) !== FY_FILTER) return null;
+    if (!dealTypeOk(deal)) return null;
+
+    var accId = ddLookupId(deal.Account_Name);
+    if (!accId) return null;
+
+    var dateQuarters = dealDateQuarters(deal);
+    var quarter = stageDateQuarter(deal, dateQuarters);
+    var inWindow = !!quarter;
+    if (!cardMode && !inWindow) return null;
+
+    var allQuarters = !selectedQuarter || selectedQuarter === ALL_QUARTERS;
+    if (!cardMode && !allQuarters && quarter !== selectedQuarter) return null;
+
+    var account = live.accountsById[accId] || null;
+    if (!accountMatchesGist(account, gistSelection)) return null;
+
+    return {
+        accId: accId,
+        account: account,
+        accName: account ? account.name : ddLookupName(deal.Account_Name, "(Unnamed Account)"),
+        quarter: quarter,
+        inWindow: inWindow,
+        dateQuarters: dateQuarters,
+        selectedQuarter: allQuarters ? ALL_QUARTERS : selectedQuarter,
+        stage: String(deal.Stage || "").trim() || "Unknown",
+        amount: dealAmountLakh(deal),
+        paymentAmount: paymentAmountLakh(deal),
+        plan: dealPlanName(deal),
+        products: fieldValueList(deal[fieldInfo.product.api]),
+        dealOwnerId: ddLookupId(deal.Owner),
+        dealOwnerName: ddLookupName(deal.Owner, ""),
+        excluded: isExcludedTestDeal(deal)
+    };
+}
+
+
+/* Quarter x Plan and Stage-wise funnel: stage date in FY, no Knimbus Default, no removed stages */
+function chartEligible(ctx) {
+    if (!ctx.inWindow) return false;
+    if (hasExcludedProduct(ctx)) return false;
+    return stageGroupOf(ctx.stage) !== null;
+}
+
+
+/* Open pipeline deal. applyProductRule = true only for the Current Pipeline card */
+function isPipelineDeal(ctx, applyProductRule) {
+    if (applyProductRule && hasExcludedProduct(ctx)) return false;
+    if (isRemovedStage(ctx.stage)) return false;
+    if (PIPELINE_OPEN_STAGES_ONLY && !isOpenStage(ctx.stage)) return false;
+    return true;
+}
+
+
+/* ownerSet = { userId: true } for the selected owners */
+function ownerSetFromNames(names, live) {
+    var set = {};
+    var missing = [];
+    names.forEach(function(name) {
+        var id = live.ownerIdByName[name.trim().toLowerCase()];
+        if (!id && currentUser && name.trim().toLowerCase() === currentUser.name.toLowerCase()) id = currentUser.id;
+        if (id) set[id] = true;
+        else missing.push(name);
+    });
+    return { set: set, missing: missing };
+}
+
+
+/* Cards: scoped to the DEAL owner */
+function matchesCardCategory(ctx, category, ownerSet) {
+    if (!ownerSet[ctx.dealOwnerId]) return false;
+    return cardStageMatch(ctx, category);
+}
+
+
+/* The card rules without the owner check (also used by Target vs Achievement) */
+function cardStageMatch(ctx, category, ignoreDate) {
+
+    if (isRemovedStage(ctx.stage)) return false;
+
+    var quarterPicked = ctx.selectedQuarter && ctx.selectedQuarter !== ALL_QUARTERS;
+    var q = ctx.dateQuarters;
+
+    function dateOk(quarter) {
+        if (ignoreDate) return true;
+        return !!quarter && (!quarterPicked || quarter === ctx.selectedQuarter);
     }
 
-
-    /*
-     ============================================================
-     RENDER TABLE
-     ============================================================
-    */
-
-    function renderTable() {
-
-        const tbody =
-            document.getElementById(
-                "accountTableBody"
-            );
-
-        tbody.innerHTML = "";
-
-
-        const searchText =
-            document.getElementById(
-                "searchBox"
-            ).value
-            .trim()
-            .toLowerCase();
+    if (category === "achieved") {
+        return isClosedWonStage(ctx.stage) && !ctx.excluded && dateOk(q.actual);
+    }
+    if (category === "payment_received") {
+        return PAYMENT_RECEIVED_KEYS.indexOf(normStage(ctx.stage)) !== -1 && !ctx.excluded && dateOk(q.payment);
+    }
+    if (category === "payment_pending") {
+        return PAYMENT_PENDING_KEYS.indexOf(normStage(ctx.stage)) !== -1 && dateOk(q.closing);
+    }
+    if (category === "current_pipeline" || category === "current_pipeline_all_products") {
+        if (!dateOk(q.expected)) return false;
+        if (!isPipelineDeal(ctx, category === "current_pipeline")) return false;
+        return !PIPELINE_REQUIRE_SAME_OWNER || (!!ctx.account && ctx.account.ownerId === ctx.dealOwnerId);
+    }
+    return false;
+}
 
 
-        let filteredAccounts =
-            allAccounts.filter(account => {
-
-                const accountName =
-                    account.Account_Name ||
-                    "Unnamed Account";
+/* Payment Received card adds up Payment Received Amount; the other cards use Expected Business */
+function cardAmount(ctx, category) {
+    return category === "payment_received" ? ctx.paymentAmount : ctx.amount;
+}
 
 
-                const accountId =
-                    String(account.id);
+/* Charts and summary: scoped to the ACCOUNT owner */
+function matchesAccountOwner(ctx, ownerSet) {
+    return !!ctx.account && !!ownerSet[ctx.account.ownerId];
+}
 
 
-                const hasDeal =
-                    dealAccountIds.has(accountId);
+function countsAsExpected(ctx) {
+    return !(EXCLUDE_LOST_FROM_EXPECTED && isClosedLostStage(ctx.stage));
+}
 
 
-                const status =
-                    hasDeal
-                    ? "DEAL"
-                    : "NO DEAL";
+function addAmount(target, key, amount, accId) {
+    if (!target[key]) target[key] = { amount_lakh: 0, count: 0, accounts: {} };
+    target[key].amount_lakh += amount;
+    target[key].count += 1;
+    if (accId) target[key].accounts[accId] = true;
+}
 
 
-                /*
-                 Filter by status
-                */
+/* =========================================================
+   METRICS
+   ========================================================= */
 
-                if (
-                    currentFilter !== "ALL" &&
-                    status !== currentFilter
-                ) {
-                    return false;
+function computeDealMetrics(live, ownerSet, gistSelection, selectedQuarter) {
+
+    var quarters = selectedQuarter && selectedQuarter !== ALL_QUARTERS ? [selectedQuarter] : QUARTERS.slice();
+
+    var m = {
+        quarters: quarters,
+        plans: [],
+        matrix: {},
+        pipelineByQuarter: {},
+        planTotals: {},
+        groupTotals: {},
+        groupStages: {},
+        cards: { achieved: 0, payment_received: 0, payment_pending: 0, current_pipeline: 0 },
+        pipelineAccounts: {},
+        leftOut: { achieved: { amount_lakh: 0, count: 0 }, payment_received: { amount_lakh: 0, count: 0 },
+                   payment_pending: { amount_lakh: 0, count: 0 }, current_pipeline: { amount_lakh: 0, count: 0 } },
+        pipelineTableAccounts: {},
+        chartDeals: 0,
+        dealsWithAmount: 0,
+        dealsWithPlan: 0
+    };
+
+    quarters.forEach(function(q) {
+        m.matrix[q] = {};
+        m.pipelineByQuarter[q] = { amount_lakh: 0, count: 0, accounts: {} };
+    });
+
+    live.deals.forEach(function(deal) {
+
+        var ctx = dealContext(deal, live, selectedQuarter, gistSelection, true);
+        if (!ctx) return;
+
+        CARD_CATEGORIES.forEach(function(category) {
+            if (!matchesCardCategory(ctx, category, ownerSet)) return;
+            m.cards[category] += cardAmount(ctx, category);
+            if (category === "current_pipeline") m.pipelineAccounts[ctx.accId] = true;
+        });
+
+        // Deals that match a card except for its date (shown under the card)
+        if (ownerSet[ctx.dealOwnerId] && ctx.selectedQuarter === ALL_QUARTERS) {
+            CARD_CATEGORIES.forEach(function(category) {
+                if (!cardStageMatch(ctx, category) && cardStageMatch(ctx, category, true)) {
+                    m.leftOut[category].amount_lakh += cardAmount(ctx, category);
+                    m.leftOut[category].count += 1;
                 }
+            });
+        }
+
+        if (!chartEligible(ctx)) return;
+        if (ctx.selectedQuarter !== ALL_QUARTERS && ctx.quarter !== ctx.selectedQuarter) return;
+        if (!matchesAccountOwner(ctx, ownerSet)) return;
+
+        m.chartDeals++;
+        if (ctx.amount) m.dealsWithAmount++;
+        if (ctx.plan !== "No Plan") m.dealsWithPlan++;
+
+        var group = stageGroupOf(ctx.stage);
+        addAmount(m.groupTotals, group, ctx.amount, ctx.accId);
+        if (!m.groupStages[group]) m.groupStages[group] = {};
+        m.groupStages[group][ctx.stage] = true;
+
+        if (!ctx.quarter) return;
+
+        if (countsAsExpected(ctx)) {
+            addAmount(m.matrix[ctx.quarter], ctx.plan, ctx.amount, ctx.accId);
+            addAmount(m.planTotals, ctx.plan, ctx.amount, ctx.accId);
+        }
+
+        if (isPipelineDeal(ctx)) {
+            m.pipelineByQuarter[ctx.quarter].amount_lakh += ctx.amount;
+            m.pipelineByQuarter[ctx.quarter].count += 1;
+            m.pipelineByQuarter[ctx.quarter].accounts[ctx.accId] = true;
+            m.pipelineTableAccounts[ctx.accId] = true;
+        }
+    });
+
+    var known = ["Plan A", "Plan B", "Plan C"];
+    var found = Object.keys(m.planTotals);
+
+    m.plans = known.filter(function(p) { return found.indexOf(p) !== -1; });
+    found.sort().forEach(function(p) {
+        if (m.plans.indexOf(p) === -1 && p !== "No Plan") m.plans.push(p);
+    });
+    // Deals without a plan are not shown in Quarter x Plan
+
+    m.groups = orderedGroups(Object.keys(m.groupTotals));
+
+    return m;
+}
 
 
-                /*
-                 Filter by search
-                */
+function orderedGroups(present) {
+    var ordered = STAGE_GROUPS.map(function(g) { return g.name; }).filter(function(n) { return present.indexOf(n) !== -1; });
+    var closedIndex = ordered.indexOf("Closed Won");
+    var extras = present.filter(function(n) { return ordered.indexOf(n) === -1; }).sort();
+    if (closedIndex === -1) return ordered.concat(extras);
+    return ordered.slice(0, closedIndex).concat(extras, ordered.slice(closedIndex));
+}
 
-                if (searchText) {
 
-                    const matchesName =
-                        accountName
-                            .toLowerCase()
-                            .includes(searchText);
+/*
+ * Target vs Achievement uses exactly the Achieved card rules:
+ * deal owner, Closed Won stages, Deal Type New, Deal Year, test deals left out.
+ * Owner teams match on the DEAL owner. Gist teams match deals owned by
+ * GIST HQ on GIST HQ accounts whose Gist Account Owner matches the team.
+ */
+function teamIndexForDeal(ctx) {
 
-                    const matchesId =
-                        accountId
-                            .toLowerCase()
-                            .includes(searchText);
+    var dealOwner = ctx.dealOwnerName.trim().toLowerCase();
 
-                    if (
-                        !matchesName &&
-                        !matchesId
-                    ) {
-                        return false;
+    for (var i = 0; i < SALES_TEAM_TARGETS.length; i++) {
+        if ((SALES_TEAM_TARGETS[i].owners || []).some(function(o) { return o.trim().toLowerCase() === dealOwner; })) return i;
+    }
+
+    if (isGistHqName(ctx.dealOwnerName) && ctx.account && isGistHqName(ctx.account.ownerName)) {
+        for (var j = 0; j < SALES_TEAM_TARGETS.length; j++) {
+            var row = SALES_TEAM_TARGETS[j];
+            if ((row.gist || []).length && ctx.account.gistNames.some(function(n) { return gistNameMatchesKeywords(n, row.gist); })) return j;
+        }
+    }
+
+    return -1;
+}
+
+
+function computeTeamMetrics(live) {
+
+    var teams = SALES_TEAM_TARGETS.map(function() {
+        var t = { achievedFY: 0, achieved: {}, pipelineA: {} };
+        QUARTERS.forEach(function(q) { t.achieved[q] = 0; t.pipelineA[q] = 0; });
+        return t;
+    });
+
+    live.deals.forEach(function(deal) {
+
+        var ctx = dealContext(deal, live, ALL_QUARTERS, [], true);
+        if (!ctx) return;
+
+        var index = teamIndexForDeal(ctx);
+        if (index < 0) return;
+
+        if (cardStageMatch(ctx, "achieved")) {
+            teams[index].achievedFY += ctx.amount;
+            teams[index].achieved[ctx.dateQuarters.actual] += ctx.amount;
+        }
+
+        if (cardStageMatch(ctx, "current_pipeline_all_products") && ctx.plan.trim().toLowerCase() === "plan a") {
+            teams[index].pipelineA[ctx.dateQuarters.expected] += ctx.amount;
+        }
+    });
+
+    return teams;
+}
+
+
+/* Closed Won / Closed Lost accounts per owner and per Gist Account Owner (Deal Type New) */
+function computeWonLost(live, selectedQuarter, gistSelection) {
+
+    var result = { owners: {}, gist: {} };
+
+    function bucketFor(map, key) {
+        if (!map[key]) map[key] = { won: {}, lost: {} };
+        return map[key];
+    }
+
+    live.deals.forEach(function(deal) {
+
+        var ctx = dealContext(deal, live, selectedQuarter, gistSelection, false);
+        if (!ctx || !ctx.account || isRemovedStage(ctx.stage)) return;
+
+        var isWon = isClosedWonStage(ctx.stage) && !ctx.excluded;
+        var isLost = isClosedLostStage(ctx.stage);
+        if (!isWon && !isLost) return;
+
+        var targets = [bucketFor(result.owners, ctx.account.ownerId)];
+
+        if (isGistHqName(ctx.account.ownerName)) {
+            var names = ctx.account.gistNames.length ? ctx.account.gistNames : [GIST_NOT_ASSIGNED];
+            names.forEach(function(n) { targets.push(bucketFor(result.gist, n)); });
+        }
+
+        targets.forEach(function(b) {
+            if (isWon) b.won[ctx.accId] = true;
+            else b.lost[ctx.accId] = true;
+        });
+    });
+
+    return result;
+}
+
+
+/* =========================================================
+   ACCOUNT ACTIVITY (live, Deal Type New accounts only)
+   ========================================================= */
+
+function filterAccounts(live, ownerSet, gistSelection) {
+    var list = [];
+    Object.keys(live.accountsById).forEach(function(id) {
+        var a = live.accountsById[id];
+        if (!a.inScope) return;
+        if (!ownerSet[a.ownerId]) return;
+        if (!accountMatchesGist(a, gistSelection)) return;
+        list.push(a);
+    });
+    return list;
+}
+
+
+function getAllCalls() {
+    if (!callsCache.__all__) callsCache.__all__ = zohoSearchAll("Calls", null);
+    return callsCache.__all__;
+}
+
+
+function getOwnerCalls(ownerId) {
+
+    if (!callsCache[ownerId]) {
+        callsCache[ownerId] = zohoSearchAll("Calls", "(Owner:equals:" + ownerId + ")").then(function(calls) {
+            // Zoho search stops at 2,000 results; fall back to the full list if we hit that
+            if (calls.length >= 2000) {
+                return getAllCalls().then(function(all) {
+                    return all.filter(function(c) { return ddLookupId(c.Owner) === ownerId; });
+                });
+            }
+            return calls;
+        });
+    }
+
+    return callsCache[ownerId];
+}
+
+
+function getCallsForOwners(ownerSet) {
+    var ids = Object.keys(ownerSet);
+    return Promise.all(ids.map(getOwnerCalls)).then(function(lists) {
+        var out = [];
+        lists.forEach(function(l) { out = out.concat(l); });
+        return out;
+    });
+}
+
+
+function latestOwnerCalls(accounts, calls) {
+
+    var byId = {};
+    accounts.forEach(function(a) { byId[a.id] = a; });
+
+    var latest = {};
+
+    calls.forEach(function(call) {
+        var whatId = ddLookupId(call.What_Id);
+        var account = byId[whatId];
+        if (!account) return;
+        if (ddLookupId(call.Owner) !== account.ownerId) return;
+        var date = ddParseDate(call.Call_Start_Time);
+        if (!date) return;
+        if (!latest[whatId] || date > latest[whatId]) latest[whatId] = date;
+    });
+
+    return latest;
+}
+
+
+function agingOf(date) {
+    var days = Math.floor((new Date() - date) / 86400000);
+    if (days <= 30) return "last_30";
+    if (days <= 60) return "days_31_60";
+    return "days_60_plus";
+}
+
+
+/*
+ * Per account: does it have a Deal Type New, Deal Year FY deal that is open /
+ * Closed Won / Closed Lost, with that stage's date in the FY (and the selected quarter)?
+ * Open = Expected Order Date, Closed Won = Actual Order Date, Closed Lost = Closing Date.
+ */
+function computeAccountDealStatus(live, selectedQuarter, gistSelection) {
+    var status = {};
+    live.deals.forEach(function(deal) {
+        var ctx = dealContext(deal, live, selectedQuarter, gistSelection, false);
+        if (!ctx || isRemovedStage(ctx.stage)) return;
+        var st = status[ctx.accId] || (status[ctx.accId] = { open: false, won: false, lost: false });
+        if (isClosedWonStage(ctx.stage)) { if (!ctx.excluded) st.won = true; }
+        else if (isClosedLostStage(ctx.stage)) st.lost = true;
+        else st.open = true;
+    });
+    return status;
+}
+
+
+function computeAccountStats(accounts, calls, dealStatus) {
+
+    var latest = latestOwnerCalls(accounts, calls);
+    var stats = { total: 0, touched: 0, untouched: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, bucket_summary: {} };
+
+    accounts.forEach(function(a) {
+
+        stats.total++;
+
+        if (!stats.bucket_summary[a.bucket]) {
+            stats.bucket_summary[a.bucket] = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0,
+                last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0 };
+        }
+
+        var bs = stats.bucket_summary[a.bucket];
+        bs.Total++;
+
+        var ds = dealStatus && dealStatus[a.id];
+        if (ds) {
+            if (ds.open) bs.open_deals++;
+            if (ds.lost) bs.closed_lost++;
+            if (ds.won) bs.closed_won++;
+        }
+
+        var lastCall = latest[a.id];
+
+        if (!lastCall) {
+            stats.untouched++;
+            bs.non_touched++;
+        } else {
+            var age = agingOf(lastCall);
+            stats.touched++;
+            stats[age]++;
+            bs[age]++;
+        }
+    });
+
+    return stats;
+}
+
+
+/* =========================================================
+   TARGETS FOR THE CURRENT FILTERS
+   ========================================================= */
+
+function targetsForFilters(ownerNames, gistSelection) {
+
+    var rows = teamRowsInScope(ownerNames, gistSelection);
+    var result = { rows: rows.length, fy: 0, Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+
+    rows.forEach(function(item) {
+        result.fy += teamFyTarget(item.row);
+        QUARTERS.forEach(function(q) { result[q] += teamQuarterTarget(item.row, q); });
+    });
+
+    return result;
+}
+
+
+function targetValue(targets, selectedQuarter) {
+    return selectedQuarter === ALL_QUARTERS ? targets.fy : targets[selectedQuarter];
+}
+
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+
+function renderAll() {
+
+    if (!personalScope) return;
+
+    var ownerNames = effectiveOwnerNames();
+    var selectedQuarter = currentQuarterSelection();
+
+    populateGistOwnerFilter();
+
+    var gistSelection = currentGistSelection();
+    var period = periodLabel(selectedQuarter);
+    var targets = targetsForFilters(ownerNames, gistSelection);
+    var target = targetValue(targets, selectedQuarter);
+    var allQuarters = selectedQuarter === ALL_QUARTERS;
+
+    aorLive = null;
+    updateSummaryTitle(selectedQuarter, gistSelection);
+
+    var targetSub = !targets.rows ? "No target set"
+        : (allQuarters ? targets.rows + (targets.rows === 1 ? " team" : " teams") : "FY target " + formatLakh(targets.fy));
+
+    var html = "";
+
+    html += '<div class="card-row">';
+    html += cardHtml("Target (" + (allQuarters ? FY_LONG_LABEL : selectedQuarter) + ")", formatLakh(target), "target", "target", escapeHtml(targetSub));
+    html += cardHtml("Achieved (Closed Won)", "Calculating...", "achieved waiting", "achieved");
+    html += cardHtml("Payment Received", "Calculating...", "achieved waiting", "payment_received");
+    html += cardHtml("Payment Pending", "Calculating...", "pending waiting", "payment_pending");
+    html += '</div>';
+
+    html += '<div class="card-row">';
+    html += cardHtml("Total Accounts", "Calculating...", "waiting", "total_accounts", "Accounts with a Deal Type New deal");
+    html += cardHtml("Untouched Accounts", "Calculating...", "pending waiting", "untouched");
+    html += cardHtml("Touched", "Calculating...", "achieved waiting", "touched");
+    html += cardHtml("Current Pipeline", "Calculating...", "pending waiting", "current_pipeline");
+    html += '</div>';
+
+    html += '<div class="section"><h2>Bucket-wise Activity</h2>';
+    html += '<p class="section-note">Accounts with a Deal Type New deal. Open Deals, Closed Lost and Closed Won count accounts with a ' +
+        'Deal Type New, Deal Year ' + FY_FILTER + ' deal in that stage (Expected Order Date / Closing Date / Actual Order Date in the ' +
+        'selected period). Call activity is measured from today, so the quarter filter does not change it.</p>';
+    html += '<div id="bucketWrap"><div class="loading">Calculating account activity...</div></div>';
+    html += '</div>';
+
+    html += '<div class="section"><h2>Expected Business, ' + escapeHtml(period) + '</h2>';
+    html += '<h3>Quarter &times; Plan</h3><div id="expectedBusinessWrap"><div class="loading">Loading deals...</div></div>';
+    html += '<h3>Target vs Achievement</h3><div id="teamTargetWrap"><div class="loading">Loading deals...</div></div>';
+    html += '</div>';
+
+    html += '<div class="section"><h2>Stage-wise Expected Business, ' + escapeHtml(period) + '</h2>';
+    html += '<div id="stageFunnelWrap"><div class="loading">Loading deals...</div></div>';
+    html += '</div>';
+
+    document.getElementById("content").innerHTML = html;
+    document.getElementById("accountOwnerSummarySection").innerHTML = '<div class="loading">Loading account owner summary...</div>';
+
+    var myToken = ++renderToken;
+
+    loadLiveData()
+
+        .then(async function(live) {
+
+            if (myToken !== renderToken) return;
+
+            populateGistOwnerFilter();
+
+            var owners = ownerSetFromNames(ownerNames, live);
+
+            if (Object.keys(owners.set).length === 0) {
+                showLiveError("No accounts are owned by " + ownerNames.join(", ") + ". Check the names in ALLOWED_ACCOUNT_OWNERS.");
+                return;
+            }
+
+            var metrics = computeDealMetrics(live, owners.set, gistSelection, selectedQuarter);
+
+            updateAmountCards(metrics.cards, target, metrics.pipelineAccounts, metrics.leftOut);
+            renderTeamTable(computeTeamMetrics(live), live, ownerNames, gistSelection, selectedQuarter);
+            renderExpectedBusiness(metrics, live, targets, owners.missing);
+            renderStageFunnel(metrics);
+
+            aorLive = {
+                live: live,
+                ownerNames: ownerNames.filter(function(n) { return owners.missing.indexOf(n) === -1; }),
+                wonLost: computeWonLost(live, selectedQuarter, gistSelection),
+                gistSelection: gistSelection,
+                ownerStats: null,
+                gistBreakdown: null,
+                gistBreakdownLoading: false
+            };
+            renderAccountOwnerSummary();
+            attachDrilldownHandlers();
+
+            var calls = await getCallsForOwners(owners.set);
+            if (myToken !== renderToken) return;
+
+            var accounts = filterAccounts(live, owners.set, gistSelection);
+            var stats = computeAccountStats(accounts, calls, computeAccountDealStatus(live, selectedQuarter, gistSelection));
+
+            setCardValue("total_accounts", stats.total);
+            setCardValue("untouched", stats.untouched);
+            setCardValue("touched", stats.touched);
+            setCardSub("untouched", accountShareSub(stats.untouched, stats.total));
+            setCardSub("touched", accountShareSub(stats.touched, stats.total));
+
+            var bucketWrap = document.getElementById("bucketWrap");
+            if (bucketWrap) bucketWrap.innerHTML = renderBucketTable(stats.bucket_summary);
+
+            aorLive.ownerStats = {};
+            aorLive.ownerNames.forEach(function(name) {
+                var single = ownerSetFromNames([name], live).set;
+                aorLive.ownerStats[name] = computeAccountStats(filterAccounts(live, single, gistSelection), calls);
+            });
+
+            renderAccountOwnerSummary();
+            if (aorGistExpanded) ensureGistBreakdown();
+            attachDrilldownHandlers();
+        })
+
+        .catch(function(err) {
+            if (myToken !== renderToken) return;
+            console.error("Live data error:", err);
+            showLiveError("Could not load data from Zoho CRM. Click Refresh to try again.");
+        });
+}
+
+
+function showLiveError(message) {
+    var html = '<div class="error">' + escapeHtml(message) + '</div>';
+    ["teamTargetWrap", "expectedBusinessWrap", "stageFunnelWrap", "bucketWrap", "accountOwnerSummarySection"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = html;
+    });
+    CARD_CATEGORIES.concat(["total_accounts", "untouched", "touched"]).forEach(function(cat) {
+        var el = document.getElementById("card-" + cat);
+        if (el && el.classList.contains("waiting")) setCardValue(cat, "—");
+    });
+}
+
+
+function updateSummaryTitle(selectedQuarter, gistSelection) {
+    var title = "Account Owner Summary (" + periodLabel(selectedQuarter) + ", Deal Type New";
+    if (gistSelection && gistSelection.length) title += ", Gist account owner: " + gistSelection.join(", ");
+    document.getElementById("aorTitle").innerText = title + ")";
+}
+
+
+function cardHtml(title, value, colorClass, category, sub) {
+    var clickableClass = category ? " clickable" : "";
+    var dataAttr = category ? ' data-cat="' + category + '"' : "";
+    var idAttr = category ? ' id="card-' + category + '"' : "";
+    var subId = category ? ' id="card-sub-' + category + '"' : "";
+    return '<div class="card"><div class="card-title">' + escapeHtml(title) + '</div>' +
+        '<div class="card-value ' + colorClass + clickableClass + '"' + idAttr + dataAttr + '>' + value + '</div>' +
+        '<div class="card-sub"' + subId + '>' + (sub || "") + '</div></div>';
+}
+
+
+function setCardValue(category, value) {
+    var el = document.getElementById("card-" + category);
+    if (!el) return;
+    el.innerText = value;
+    el.classList.remove("waiting");
+}
+
+
+function setCardSub(category, html) {
+    var el = document.getElementById("card-sub-" + category);
+    if (el) el.innerHTML = html || "";
+}
+
+
+function percentText(part, whole) {
+    part = Number(part || 0);
+    whole = Number(whole || 0);
+    if (!whole) return null;
+    var pct = (part / whole) * 100;
+    return (pct >= 10 || pct === 0 ? pct.toFixed(0) : pct.toFixed(1)) + "%";
+}
+
+
+function pctBadge(part, whole) {
+    var text = percentText(part, whole);
+    if (!text) return '<span class="pct none">No target</span>';
+    var pct = (Number(part) / Number(whole)) * 100;
+    var cls = pct >= 100 ? "good" : (pct >= 70 ? "ok" : "low");
+    return '<span class="pct ' + cls + '">' + text + '</span>';
+}
+
+
+function accountShareSub(count, total) {
+    var pct = percentText(count, total);
+    return pct ? '<strong>' + pct + '</strong> of ' + Number(total).toLocaleString("en-IN") + ' accounts' : "";
+}
+
+
+function targetShareSub(amountLakh, targetLakh) {
+    var pct = percentText(amountLakh, targetLakh);
+    return pct ? '<strong>' + pct + '</strong> of ' + formatLakh(targetLakh) + ' target' : "No target set";
+}
+
+
+function accountsLabel(n) {
+    return Number(n).toLocaleString("en-IN") + (n === 1 ? " account" : " accounts");
+}
+
+
+function formatLakh(value) {
+    var number = Number(value);
+    if (isNaN(number)) number = 0;
+    return number.toFixed(2) + " L";
+}
+
+
+function updateAmountCards(cards, targetLakh, pipelineAccounts, leftOut) {
+
+    var dateNames = {
+        achieved: "Actual Order Date",
+        payment_received: "Payment Receiving Date",
+        payment_pending: "Closing Date",
+        current_pipeline: "Expected Order Date"
+    };
+
+    function leftOutLine(category) {
+        var l = leftOut && leftOut[category];
+        if (!l || !l.count) return "";
+        return '<br><span style="color:#b45309;">' + formatLakh(l.amount_lakh) + ' (' + l.count + (l.count === 1 ? ' deal' : ' deals') +
+            ') left out: ' + dateNames[category] + ' not in ' + FY_LONG_LABEL + '</span>';
+    }
+
+    CARD_CATEGORIES.forEach(function(category) {
+        setCardValue(category, formatLakh(cards[category]));
+    });
+
+    setCardSub("achieved", targetShareSub(cards.achieved, targetLakh) + leftOutLine("achieved"));
+    setCardSub("payment_received", targetShareSub(cards.payment_received, targetLakh) + leftOutLine("payment_received"));
+    setCardSub("payment_pending", leftOutLine("payment_pending").replace(/^<br>/, ""));
+    setCardSub("current_pipeline", '<strong>' + accountsLabel(Object.keys(pipelineAccounts || {}).length) + '</strong>' +
+        leftOutLine("current_pipeline"));
+}
+
+
+function renderBucketTable(bucketSummary) {
+
+    var buckets = Object.keys(bucketSummary || {}).sort(function(a, b) {
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+    });
+
+    if (buckets.length === 0) return '<div class="loading">No accounts for the selected filters.</div>';
+
+    var html = '<div class="table-scroll"><table><thead><tr><th style="text-align:left;">Bucket</th>' +
+        '<th>Total</th><th>Open Deals</th><th>Closed Lost</th><th>Closed Won</th>' +
+        '<th>Last 30 Days</th><th>31-60 Days</th><th>60+ Days</th><th>Non-Touched</th></tr></thead><tbody>';
+
+    var grand = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0 };
+
+    function bucketCell(count, category) {
+        if (count && count > 0) return '<td class="clickable plain" data-cat="' + escapeHtml(category) + '">' + count + '</td>';
+        return '<td>' + (count || 0) + '</td>';
+    }
+
+    buckets.forEach(function(bucket) {
+
+        var row = bucketSummary[bucket];
+        var prefix = "bucket:" + encodeURIComponent(bucket) + ":";
+
+        html += '<tr><td class="row-label">' + escapeHtml(bucket) + '</td>';
+        html += bucketCell(row.Total, prefix + "Total");
+        html += bucketCell(row.open_deals, prefix + "open_deals");
+        html += bucketCell(row.closed_lost, prefix + "closed_lost");
+        html += bucketCell(row.closed_won, prefix + "closed_won");
+        html += bucketCell(row.last_30, prefix + "last_30");
+        html += bucketCell(row.days_31_60, prefix + "days_31_60");
+        html += bucketCell(row.days_60_plus, prefix + "days_60_plus");
+        html += bucketCell(row.non_touched, prefix + "non_touched");
+        html += '</tr>';
+
+        Object.keys(grand).forEach(function(key) { grand[key] += Number(row[key] || 0); });
+    });
+
+    html += '<tr class="grand-total"><td class="row-label">Grand Total</td>' +
+        '<td>' + grand.Total + '</td><td>' + grand.open_deals + '</td><td>' + grand.closed_lost + '</td><td>' +
+        grand.closed_won + '</td><td>' + grand.last_30 + '</td>' +
+        '<td>' + grand.days_31_60 + '</td><td>' + grand.days_60_plus + '</td>' +
+        '<td>' + grand.non_touched + '</td></tr>';
+
+    return html + '</tbody></table></div>';
+}
+
+
+/* ---- Target vs Achievement ---- */
+
+/*
+ * "Others": achievement (Achieved card rules) that doesn't belong to any sales team,
+ * e.g. deals owned by other users, or GIST HQ deals whose Gist Account Owner has no team.
+ */
+/* Personal view: an "Others" row only when the user has no sales team row of their own */
+function othersInScope(ownerNames) {
+    return teamRowsInScope(ownerNames, currentGistSelection()).length === 0;
+}
+
+
+function othersDealMatches(ctx, ownerNames) {
+    if (teamIndexForDeal(ctx) !== -1) return false;
+    if (ownerNames.length === ALLOWED_ACCOUNT_OWNERS.length) return true;   // All Owners: any user
+    return ownerNames.some(function(n) { return n.trim().toLowerCase() === ctx.dealOwnerName.trim().toLowerCase(); });
+}
+
+
+function computeOthers(live, ownerNames, gistSelection) {
+    var o = { achievedFY: 0, achieved: {}, who: {} };
+    QUARTERS.forEach(function(q) { o.achieved[q] = 0; });
+    live.deals.forEach(function(deal) {
+        var ctx = dealContext(deal, live, ALL_QUARTERS, gistSelection, true);
+        if (!ctx || !cardStageMatch(ctx, "achieved") || !othersDealMatches(ctx, ownerNames)) return;
+        o.achievedFY += ctx.amount;
+        o.achieved[ctx.dateQuarters.actual] += ctx.amount;
+        var who = isGistHqName(ctx.dealOwnerName) && ctx.account && ctx.account.gistNames.length
+            ? ctx.account.gistNames.join(", ") : (ctx.dealOwnerName || "Unassigned");
+        o.who[who] = true;
+    });
+    return o;
+}
+
+
+function renderTeamTable(teams, live, ownerNames, gistSelection, selectedQuarter) {
+
+    var wrap = document.getElementById("teamTargetWrap");
+    if (!wrap) return;
+
+    var rows = teamRowsInScope(ownerNames, gistSelection);
+    var showOthers = othersInScope(ownerNames);
+    var others = showOthers ? computeOthers(live, ownerNames, gistSelection) : null;
+
+    // Accounts behind each team: same population as the Total Accounts card
+    var ownerSet = ownerSetFromNames(ownerNames, live).set;
+    var teamAccounts = SALES_TEAM_TARGETS.map(function() { return 0; });
+    var otherAccounts = 0;
+    filterAccounts(live, ownerSet, gistSelection).forEach(function(a) {
+        if (a.teamIndex >= 0) teamAccounts[a.teamIndex]++;
+        else otherAccounts++;
+    });
+
+    if (rows.length === 0 && !showOthers) {
+        wrap.innerHTML = '<div class="loading">No sales team target is set for this selection. ' +
+            'Add it to SALES_TEAM_TARGETS at the top of the widget.</div>';
+        return;
+    }
+
+    var single = selectedQuarter !== ALL_QUARTERS;
+    var nowQuarter = currentFyQuarter();
+
+    var html = '<div class="table-scroll"><table class="team-table"><thead><tr>';
+    html += '<th style="text-align:left;">Sales Manager</th><th>FY Target</th>';
+
+    if (single) {
+        html += '<th>' + selectedQuarter + ' Target</th><th>' + selectedQuarter + ' Achieved</th><th>Achv %</th>';
+    } else {
+        html += '<th>FY Achieved</th><th>Achv %</th>';
+        QUARTERS.forEach(function(q) {
+            html += '<th' + (q === nowQuarter ? ' class="current-q"' : '') + '>' + q +
+                '<br><span style="font-weight:400;font-size:11px;">Achieved / Target</span></th>';
+        });
+    }
+
+    html += '</tr></thead><tbody>';
+
+    var total = { fy: 0, fyAchieved: 0, qTarget: {}, qAchieved: {}, month: 0, pipelineA: 0 };
+
+    QUARTERS.forEach(function(q) { total.qTarget[q] = 0; total.qAchieved[q] = 0; });
+
+    rows.forEach(function(item) {
+
+        var row = item.row;
+        var t = teams[item.index];
+        var fyAchieved = t.achievedFY;
+        var idx = item.index;
+
+        html += '<tr><td class="row-label">' + escapeHtml(row.team) +
+            '<span class="sub">' + accountsLabel(teamAccounts[idx] || 0) + '</span></td>';
+        html += '<td>' + formatLakh(teamFyTarget(row)) + '</td>';
+
+        if (single) {
+            var qt = teamQuarterTarget(row, selectedQuarter);
+            var qa = t.achieved[selectedQuarter];
+            html += '<td>' + formatLakh(qt) + '</td>';
+            html += teamAmountCell(qa, "team:" + idx + ":" + selectedQuarter + ":achieved");
+            html += '<td>' + pctBadge(qa, qt) + '</td>';
+        } else {
+            html += teamAmountCell(fyAchieved, "team:" + idx + ":FY:achieved");
+            html += '<td>' + pctBadge(fyAchieved, teamFyTarget(row)) + '</td>';
+            QUARTERS.forEach(function(q) {
+                var target = teamQuarterTarget(row, q);
+                var achieved = t.achieved[q];
+                html += '<td class="q-cell' + (achieved ? ' clickable' : '') + '"' +
+                    (achieved ? ' data-cat="team:' + idx + ':' + q + ':achieved"' : '') + '>' +
+                    '<span class="big">' + formatLakh(achieved) + '</span>' +
+                    '<span class="small">of ' + formatLakh(target) + '</span>' + pctBadge(achieved, target) + '</td>';
+            });
+        }
+
+        html += '</tr>';
+
+
+        total.fy += teamFyTarget(row);
+        total.fyAchieved += fyAchieved;
+        QUARTERS.forEach(function(q) {
+            total.qTarget[q] += teamQuarterTarget(row, q);
+            total.qAchieved[q] += t.achieved[q];
+        });
+    });
+
+    if (showOthers) {
+        var whoList = Object.keys(others.who).sort();
+        html += '<tr><td class="row-label">Others<span class="sub">' + accountsLabel(otherAccounts) + ' &middot; ' +
+            escapeHtml(whoList.length ? whoList.slice(0, 4).join("; ") + (whoList.length > 4 ? " and " + (whoList.length - 4) + " more" : "") : "no achievement") +
+            '</span></td>';
+        html += '<td>' + formatLakh(0) + '</td>';
+        if (single) {
+            html += '<td>' + formatLakh(0) + '</td>';
+            html += teamAmountCell(others.achieved[selectedQuarter], "team:others:" + selectedQuarter + ":achieved");
+            html += '<td>' + pctBadge(others.achieved[selectedQuarter], 0) + '</td>';
+        } else {
+            html += teamAmountCell(others.achievedFY, "team:others:FY:achieved");
+            html += '<td>' + pctBadge(others.achievedFY, 0) + '</td>';
+            QUARTERS.forEach(function(q) {
+                var a = others.achieved[q];
+                html += '<td class="q-cell' + (a ? ' clickable' : '') + '"' + (a ? ' data-cat="team:others:' + q + ':achieved"' : '') + '>' +
+                    '<span class="big">' + formatLakh(a) + '</span><span class="small">of ' + formatLakh(0) + '</span>' + pctBadge(a, 0) + '</td>';
+            });
+        }
+        html += '</tr>';
+
+        total.fyAchieved += others.achievedFY;
+        QUARTERS.forEach(function(q) { total.qAchieved[q] += others.achieved[q]; });
+    }
+
+    if (rows.length + (showOthers ? 1 : 0) > 1) {
+        html += '<tr class="grand-total"><td class="row-label">Total</td><td>' + formatLakh(total.fy) + '</td>';
+        if (single) {
+            html += '<td>' + formatLakh(total.qTarget[selectedQuarter]) + '</td><td>' +
+                formatLakh(total.qAchieved[selectedQuarter]) + '</td><td>' +
+                pctBadge(total.qAchieved[selectedQuarter], total.qTarget[selectedQuarter]) + '</td>';
+        } else {
+            html += '<td>' + formatLakh(total.fyAchieved) + '</td><td>' + pctBadge(total.fyAchieved, total.fy) + '</td>';
+            QUARTERS.forEach(function(q) {
+                html += '<td class="q-cell"><span class="big">' + formatLakh(total.qAchieved[q]) + '</span>' +
+                    '<span class="small">of ' + formatLakh(total.qTarget[q]) + '</span>' +
+                    pctBadge(total.qAchieved[q], total.qTarget[q]) + '</td>';
+            });
+        }
+        html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+
+    html += '<div class="data-source">Achieved uses the Achieved card rules: deal owner, Closed Won stages, Deal Type New, ' +
+        'Deal Year ' + FY_FILTER + ' and Actual Order Date in ' + FY_LONG_LABEL + ' (the quarter comes from the Actual Order Date). ' +
+        GIST_HQ_OWNER_NAME + ' deals are split into teams by the account\'s Gist Account Owner. The account count under each ' +
+        'team uses the same accounts as the Total Accounts card, so the teams plus Others add up to it.</div>';
+
+    var mismatched = rows.filter(function(item) {
+        var sum = QUARTERS.reduce(function(t, q) { return t + teamQuarterTarget(item.row, q); }, 0);
+        return Math.abs(sum - teamFyTarget(item.row)) > 0.005;
+    }).map(function(item) {
+        var sum = QUARTERS.reduce(function(t, q) { return t + teamQuarterTarget(item.row, q); }, 0);
+        return item.row.team + " (FY " + formatLakh(teamFyTarget(item.row)) + ", quarters " + formatLakh(sum) + ")";
+    });
+
+    if (mismatched.length) {
+        html += '<div class="warn-note">FY target does not equal the four quarter targets for: ' +
+            mismatched.map(escapeHtml).join(", ") + '. Fix the numbers in SALES_TEAM_TARGETS.</div>';
+    }
+
+    var unmatched = live.gistValues.filter(function(name) {
+        if (name === GIST_NOT_ASSIGNED) return false;
+        return !SALES_TEAM_TARGETS.some(function(row) { return gistNameMatchesKeywords(name, row.gist); });
+    });
+
+    if (unmatched.length && ownerNames.some(isGistHqName)) {
+        html += '<div class="data-source">Gist Account Owners without a team target (not in this table): ' +
+            unmatched.map(escapeHtml).join(", ") + '.</div>';
+    }
+
+    var emptyTeams = rows.filter(function(item) {
+        return teamFyTarget(item.row) > 0 && !teamAccounts[item.index];
+    }).map(function(item) { return item.row.team; });
+
+    if (emptyTeams.length) {
+        html += '<div class="warn-note">No accounts matched: ' + emptyTeams.map(escapeHtml).join(", ") +
+            '. Check the owner names or Gist words for these teams in SALES_TEAM_TARGETS.</div>';
+    }
+
+    wrap.innerHTML = html;
+}
+
+
+function teamAmountCell(amount, category, note) {
+    var attrs = amount ? ' class="amount-cell clickable" data-cat="' + escapeHtml(category) + '"' : ' class="amount-cell zero"';
+    return '<td' + attrs + '><span class="big">' + formatLakh(amount) + '</span>' +
+        (note ? '<span class="small">' + escapeHtml(note) + '</span>' : '') + '</td>';
+}
+
+
+/* ---- Quarter x Plan ---- */
+
+function planColor(plan, index) {
+    if (PLAN_COLORS[plan]) return PLAN_COLORS[plan];
+    return EXTRA_PLAN_COLORS[index % EXTRA_PLAN_COLORS.length];
+}
+
+
+function lakhCell(bucket, category, extraClass, showAccounts) {
+
+    var amount = Number((bucket && bucket.amount_lakh) || 0);
+    var count = Number((bucket && bucket.count) || 0);
+    var accountCount = bucket && bucket.accounts ? Object.keys(bucket.accounts).length : 0;
+    var classes = "amount-cell" + (extraClass ? " " + extraClass : "") +
+        (count && category ? " clickable" : "") + (!count ? " zero" : "");
+    var dataAttr = count && category ? ' data-cat="' + escapeHtml(category) + '"' : "";
+
+    return '<td class="' + classes + '"' + dataAttr + '>' +
+        '<span class="big">' + amount.toFixed(2) + ' L</span>' +
+        '<span class="small">' + (showAccounts ? accountsLabel(accountCount)
+            : count + (count === 1 ? ' deal' : ' deals')) + '</span></td>';
+}
+
+
+function renderExpectedBusiness(m, live, targets, missingOwners) {
+
+    var wrap = document.getElementById("expectedBusinessWrap");
+    if (!wrap) return;
+
+    var notes = dataSourceNotes(m, live, missingOwners);
+
+    if (m.plans.length === 0) {
+        wrap.innerHTML = '<div class="loading">No expected business deals with a Plan for the selected filters.</div>' + notes;
+        return;
+    }
+
+    var grandExpected = { amount_lakh: 0, count: 0 };
+    m.plans.forEach(function(plan) {
+        grandExpected.amount_lakh += m.planTotals[plan].amount_lakh;
+        grandExpected.count += m.planTotals[plan].count;
+    });
+
+    var grandPipeline = { amount_lakh: 0, count: 0 };
+    m.quarters.forEach(function(q) {
+        grandPipeline.amount_lakh += m.pipelineByQuarter[q].amount_lakh;
+        grandPipeline.count += m.pipelineByQuarter[q].count;
+    });
+
+    var pipelineAccountCount = Object.keys(m.pipelineTableAccounts).length;
+
+    var html = '<div class="eb-summary">';
+
+
+    html += '<div class="eb-tile" style="border-left-color:#d97706;"><span class="label">Pipeline (by account owner)</span>' +
+        '<span class="value">' + formatLakh(grandPipeline.amount_lakh) + '</span>' +
+        '<span class="sub">' + accountsLabel(pipelineAccountCount) + '</span></div>';
+
+    m.plans.forEach(function(plan, i) {
+        var total = m.planTotals[plan];
+        var share = grandExpected.amount_lakh ? Math.round((total.amount_lakh / grandExpected.amount_lakh) * 100) : 0;
+        html += '<div class="eb-tile" style="border-left-color:' + planColor(plan, i) + ';">' +
+            '<span class="label">' + escapeHtml(plan) + '</span>' +
+            '<span class="value">' + formatLakh(total.amount_lakh) + '</span>' +
+            '<span class="sub">' + total.count + ' deals, ' + share + '% of total</span></div>';
+    });
+
+    html += '</div>';
+
+    html += '<div class="table-scroll"><table class="eb-table"><thead><tr><th style="text-align:left;">Quarter</th>';
+    m.plans.forEach(function(plan, i) {
+        html += '<th><span class="plan-dot" style="background:' + planColor(plan, i) + ';"></span>' + escapeHtml(plan) + '</th>';
+    });
+    html += '<th>Pipeline (by account owner)</th><th class="mix-col">Plan Mix</th></tr></thead><tbody>';
+
+    m.quarters.forEach(function(quarter) {
+
+        var rowTotal = { amount_lakh: 0, count: 0 };
+        m.plans.forEach(function(plan) {
+            var cell = m.matrix[quarter][plan];
+            if (!cell) return;
+            rowTotal.amount_lakh += cell.amount_lakh;
+            rowTotal.count += cell.count;
+        });
+
+        html += '<tr><td class="row-label">' + quarter + ' (Target = ' + formatLakh(targets[quarter]) + ')' +
+            '<span class="sub">' + QUARTER_INFO[quarter].range + '</span></td>';
+
+        m.plans.forEach(function(plan) {
+            html += lakhCell(m.matrix[quarter][plan], "qp:" + encodeURIComponent(quarter) + ":" + encodeURIComponent(plan));
+        });
+
+        html += lakhCell(m.pipelineByQuarter[quarter], "quarter_pipeline:" + encodeURIComponent(quarter), null, true);
+
+        html += '<td class="mix-col"><div class="mix-bar">';
+        m.plans.forEach(function(plan, i) {
+            var cell = m.matrix[quarter][plan];
+            if (!cell || !rowTotal.amount_lakh || cell.amount_lakh <= 0) return;
+            var pct = (cell.amount_lakh / rowTotal.amount_lakh) * 100;
+            html += '<span style="width:' + pct.toFixed(1) + '%;background:' + planColor(plan, i) + ';" title="' +
+                escapeHtml(plan) + ': ' + cell.amount_lakh.toFixed(2) + ' L"></span>';
+        });
+        html += '</div></td></tr>';
+    });
+
+    if (m.quarters.length > 1) {
+        var fyTarget = m.quarters.reduce(function(sum, q) { return sum + targets[q]; }, 0);
+        html += '<tr class="grand-total"><td class="row-label">Grand Total (Target = ' + formatLakh(fyTarget) + ')</td>';
+        m.plans.forEach(function(plan) { html += '<td>' + formatLakh(m.planTotals[plan].amount_lakh) + '</td>'; });
+        html += '<td>' + formatLakh(grandPipeline.amount_lakh) + ' (' + accountsLabel(pipelineAccountCount) + ')</td>';
+        html += '<td class="mix-col"></td></tr>';
+    }
+
+    html += '</tbody></table></div>';
+    html += '<div class="data-source">Pipeline here counts open deals on accounts owned by the selected owner, whoever logged the ' +
+        'deal. The Current Pipeline card at the top is stricter: the deal owner must also own the account, so the two can differ.</div>';
+    html += notes;
+
+    wrap.innerHTML = html;
+}
+
+
+function dataSourceNotes(m, live, missingOwners) {
+
+    var f = fieldInfo;
+
+    var html = '<div class="data-source">' + live.deals.length + ' deals loaded, ' + live.fyDealCount +
+        ' with Deal Year ' + FY_FILTER + ' and Deal Type ' + escapeHtml(DEAL_TYPE_VALUES.join(" / ")) +
+        '. Renewal Notice stages are left out. Knimbus Default is left out of this table, the Stage-wise funnel and the Current Pipeline card. Fields used: Amount = ' +
+        escapeHtml(f.amount.label) + ' (' + escapeHtml(f.amount.api) + ', read as ' + amountUnitInUse +
+        '), Plan = ' + escapeHtml(f.plan.label) + ' (' + escapeHtml(f.plan.api) +
+        '), Product = ' + escapeHtml(f.product.label) + ' (' + escapeHtml(f.product.api) +
+        '), Deal Type = ' + escapeHtml(f.dealType.label) + ' (' + escapeHtml(f.dealType.api) +
+        '), Expected Order Date = ' + escapeHtml(f.expectedOrderDate.api) +
+        ', Actual Order Date = ' + escapeHtml(f.actualOrderDate.api) +
+        ', Payment Receiving Date = ' + escapeHtml(f.paymentDate.api) +
+        ', Payment Received Amount = ' + escapeHtml(f.paymentAmount.api) + ' (read as ' + paymentAmountUnitInUse + ')' +
+        ', Closing Date = ' + escapeHtml(f.closingDate.api) +
+        '), Year = ' + escapeHtml(f.year.label) + ' (' + escapeHtml(f.year.api) +
+        '), Gist Account Owner = ' + escapeHtml(f.gist.label) + ' (' + escapeHtml(f.gist.api) + ').</div>';
+
+    var warnings = [];
+
+    [["expectedOrderDate", "Expected Order Date"], ["actualOrderDate", "Actual Order Date"],
+     ["paymentDate", "Payment Receiving Date"], ["paymentAmount", "Payment Received Amount"],
+     ["closingDate", "Closing Date"]].forEach(function(pair) {
+        if (!f[pair[0]].found) {
+            warnings.push('No "' + pair[1] + '" field was found on Deals, so everything that depends on it shows 0. ' +
+                'Set <code>DEAL_FIELDS.' + pair[0] + '</code> to its API name.');
+        }
+    });
+    if ((missingOwners || []).length) {
+        warnings.push('No accounts found for ' + missingOwners.map(escapeHtml).join(", ") +
+            '. Check the spelling in <code>ALLOWED_ACCOUNT_OWNERS</code>.');
+    }
+    if (!f.dealType.found) {
+        warnings.push('No Deal Type field with the value "New" was found, so deals are NOT filtered by Deal Type. ' +
+            'Set <code>DEAL_FIELDS.dealType</code> to its API name, or check <code>DEAL_TYPE_VALUES</code>.');
+    } else if (live.yearDealCount > 0 && live.fyDealCount === 0) {
+        warnings.push('No ' + FY_FILTER + ' deal has Deal Type ' + escapeHtml(DEAL_TYPE_VALUES.join(" / ")) +
+            '. Check the exact picklist value and update <code>DEAL_TYPE_VALUES</code>.');
+    }
+    if (live.deals.length > 0 && live.yearDealCount === 0) {
+        warnings.push('No deal has Deal Year ' + FY_FILTER + '. Set <code>DEAL_FIELDS.year</code> to your Deal Year API name.');
+    }
+    if (live.outsideWindow > 0) {
+        warnings.push(live.outsideWindow + ' deals have Deal Year ' + FY_FILTER + ' but their stage date (Expected Order Date ' +
+            'for open stages, Actual Order Date for Closed Won, Closing Date for Closed Lost) is blank or outside 1 Apr ' +
+            FY_START_YEAR + ' - 31 Mar ' + (FY_START_YEAR + 1) + ', so they are not counted.');
+    }
+    if (!/expected ?business/i.test(f.amount.label + " " + f.amount.api.replace(/_/g, " "))) {
+        warnings.push('No "Expected Business" field was found on Deals, so amounts use "' + escapeHtml(f.amount.label) +
+            '". Set <code>DEAL_FIELDS.amount</code> to the Expected Business API name.');
+    }
+    if (!f.product.found) {
+        warnings.push('No Product field was found, so Knimbus Default deals cannot be left out. Set ' +
+            '<code>DEAL_FIELDS.product</code> to its API name.');
+    }
+    if (m.chartDeals > 0 && m.dealsWithAmount === 0) warnings.push('Every Expected Business amount is 0 for these filters.');
+    if (m.chartDeals > 0 && m.dealsWithPlan === 0) {
+        warnings.push('No deal has a value in "' + escapeHtml(f.plan.label) + '". Set <code>DEAL_FIELDS.plan</code> ' +
+            'to the API name of your Plan field.');
+    }
+
+    warnings.forEach(function(w) { html += '<div class="warn-note">' + w + '</div>'; });
+
+    return html;
+}
+
+
+/* ---- Funnel ---- */
+
+function groupSubLabel(group) {
+    var def = STAGE_GROUPS.filter(function(g) { return g.name === group; })[0];
+    return def && def.show ? def.show.join(", ") : "";
+}
+
+
+function stageColor(group, index) {
+    if (group === "Closed Lost") return "#dc2626";
+    if (group === "Closed Won") return "#059669";
+    var blues = ["#1f4e78", "#1d5fa8", "#2563eb", "#3b82f6", "#60a5fa"];
+    return blues[index % blues.length];
+}
+
+
+function renderStageFunnel(m) {
+
+    var wrap = document.getElementById("stageFunnelWrap");
+    if (!wrap) return;
+
+    // Always the nine stage groups, in the order set in STAGE_GROUPS
+    var groups = STAGE_GROUPS.map(function(g) { return g.name; });
+    var empty = { amount_lakh: 0, count: 0, accounts: {} };
+
+    function totalsFor(group) { return m.groupTotals[group] || empty; }
+
+    var maxAmount = Math.max.apply(null, groups.map(function(g) { return totalsFor(g).amount_lakh; }));
+    var maxCount = Math.max.apply(null, groups.map(function(g) { return totalsFor(g).count; }));
+    var useAmount = maxAmount > 0;
+
+    var totalAmount = 0;
+    var totalCount = 0;
+    var html = '<div class="funnel">';
+
+    groups.forEach(function(group, i) {
+
+        var t = totalsFor(group);
+        var ratio = useAmount ? t.amount_lakh / maxAmount : (maxCount ? t.count / maxCount : 0);
+        var width = t.count ? Math.max(3, Math.round(ratio * 100)) : 0;
+        var sub = groupSubLabel(group);
+
+        totalAmount += t.amount_lakh;
+        totalCount += t.count;
+
+        html += '<div class="funnel-row' + (t.count ? ' clickable" data-cat="stage:' + escapeHtml(encodeURIComponent(group)) +
+                '" title="Click to see accounts"' : '"') + '>' +
+            '<div class="funnel-stage">' + (i + 1) + '. ' + escapeHtml(group) +
+                (sub ? '<span class="sub">' + escapeHtml(sub) + '</span>' : '') + '</div>' +
+            '<div class="funnel-track"><div class="funnel-bar" style="width:' + width + '%;background:' + stageColor(group, i) + ';"></div></div>' +
+            '<div class="funnel-value"><span class="big">' + formatLakh(t.amount_lakh) + '</span>' +
+            '<span class="small">' + t.count + (t.count === 1 ? ' deal' : ' deals') + ', ' +
+            accountsLabel(Object.keys(t.accounts).length) + '</span></div>' +
+            '</div>';
+    });
+
+    html += '</div><div class="funnel-total">All stages: <strong>' + formatLakh(totalAmount) + '</strong> across ' +
+        totalCount + ' deals</div>';
+    html += '<div class="data-source">Counts DEALS (the Account Owner Summary counts accounts) and leaves out Knimbus Default ' +
+        'and the Renewal Notice stages, so Closed Won and Closed Lost here are smaller than in that table.</div>';
+
+    var others = Object.keys(m.groupTotals).filter(function(g) { return groups.indexOf(g) === -1; }).sort();
+    if (others.length) {
+        html += '<div class="data-source">Stages not in this list and not shown: ' + others.map(function(g) {
+            return escapeHtml(g) + ' (' + formatLakh(m.groupTotals[g].amount_lakh) + ', ' + m.groupTotals[g].count + (m.groupTotals[g].count === 1 ? ' deal)' : ' deals)');
+        }).join(", ") + '.</div>';
+    }
+
+    wrap.innerHTML = html;
+}
+
+
+/* =========================================================
+   ACCOUNT OWNER SUMMARY
+   One row per selected owner (from the top filter). Accounts are
+   those with a Deal Type New deal.
+   ========================================================= */
+
+function toggleGistBreakdown(event) {
+    if (event) event.stopPropagation();
+    aorGistExpanded = !aorGistExpanded;
+    renderAccountOwnerSummary();
+    if (aorGistExpanded) ensureGistBreakdown();
+}
+
+
+function ensureGistBreakdown() {
+
+    if (!aorLive || !aorLive.ownerStats || aorLive.gistBreakdown || aorLive.gistBreakdownLoading) return;
+
+    var state = aorLive;
+    var live = state.live;
+    var gistId = live.ownerIdByName[GIST_HQ_OWNER_NAME.toLowerCase()];
+
+    state.gistBreakdownLoading = true;
+
+    (gistId ? getOwnerCalls(gistId) : Promise.resolve([])).then(function(calls) {
+
+        if (aorLive !== state) return;
+
+        var set = {};
+        if (gistId) set[gistId] = true;
+
+        var names = live.gistValues.filter(function(v) {
+            return !state.gistSelection.length || state.gistSelection.indexOf(v) !== -1;
+        });
+
+        state.gistBreakdown = names.map(function(name) {
+            var accounts = gistId ? filterAccounts(live, set, name) : [];
+            var wl = state.wonLost.gist[name] || { won: {}, lost: {} };
+            return {
+                name: name,
+                stats: computeAccountStats(accounts, calls),
+                won: Object.keys(wl.won).length,
+                lost: Object.keys(wl.lost).length
+            };
+        }).filter(function(g) { return g.stats.total || g.won || g.lost; });
+
+        state.gistBreakdownLoading = false;
+        renderAccountOwnerSummary();
+        attachDrilldownHandlers();
+
+    }).catch(function(err) {
+        console.error("Gist breakdown error:", err);
+        state.gistBreakdownLoading = false;
+        state.gistBreakdown = [];
+        renderAccountOwnerSummary();
+    });
+}
+
+
+function renderAccountOwnerSummary() {
+
+    var container = document.getElementById("accountOwnerSummarySection");
+    if (!aorLive) return;
+
+    var live = aorLive.live;
+    var PENDING = "…";
+    var keys = ["total_accounts", "last_30", "days_31_60", "days_60_plus", "touched", "non_touched", "closed_won", "closed_lost"];
+    var categories = ["total_accounts", "aging:last_30", "aging:days_31_60", "aging:days_60_plus", "touched", "untouched", "won_accounts", "lost_accounts"];
+
+    function cell(value, ownerName, category, gistName) {
+        if (value === PENDING) return '<td>' + PENDING + '</td>';
+        value = value || 0;
+        if (value > 0) {
+            return '<td class="clickable plain" data-cat="' + escapeHtml(category) + '" data-owners="' + escapeHtml(ownerName) + '"' +
+                (gistName ? ' data-gist="' + escapeHtml(gistName) + '"' : '') + '>' + value + '</td>';
+        }
+        return '<td>0</td>';
+    }
+
+    function rowValues(stats, won, lost) {
+        if (!stats) {
+            return { total_accounts: PENDING, last_30: PENDING, days_31_60: PENDING, days_60_plus: PENDING,
+                     touched: PENDING, non_touched: PENDING, closed_won: won, closed_lost: lost };
+        }
+        return { total_accounts: stats.total, last_30: stats.last_30, days_31_60: stats.days_31_60,
+                 days_60_plus: stats.days_60_plus, touched: stats.touched, non_touched: stats.untouched,
+                 closed_won: won, closed_lost: lost };
+    }
+
+    var html = '<div class="table-scroll"><table><thead><tr>';
+    html += '<th style="text-align:left;">Account Owner</th><th>Total</th><th>Last 30</th>';
+    html += '<th>31-60</th><th>60+</th><th>Touched</th><th>Non-Touched</th><th>Closed Won<br><span style="font-weight:400;font-size:11px;">accounts</span></th>' +
+        '<th>Closed Lost<br><span style="font-weight:400;font-size:11px;">accounts</span></th>';
+    html += '</tr></thead><tbody>';
+
+    var grand = {};
+    keys.forEach(function(k) { grand[k] = 0; });
+    var grandPending = false;
+
+    aorLive.ownerNames.forEach(function(ownerName) {
+
+        var ownerId = live.ownerIdByName[ownerName.trim().toLowerCase()];
+        var wl = aorLive.wonLost.owners[ownerId] || { won: {}, lost: {} };
+        var stats = aorLive.ownerStats ? aorLive.ownerStats[ownerName] : null;
+        var row = rowValues(stats, Object.keys(wl.won).length, Object.keys(wl.lost).length);
+        var isGist = isGistHqName(ownerName);
+
+        var gistPersonal = personalScope && personalScope.mode === "gist";
+        html += '<tr><td class="row-label">' + escapeHtml(gistPersonal ? personalScope.label : ownerName) +
+            (isGist && !gistPersonal ? '<button class="expand-btn" onclick="toggleGistBreakdown(event)">' +
+                (aorGistExpanded ? "Hide Gist account owners" : "Show Gist account owners") + '</button>' : '') + '</td>';
+        keys.forEach(function(k, i) { html += cell(row[k], ownerName, categories[i]); });
+        html += '</tr>';
+
+        keys.forEach(function(k) {
+            if (row[k] === PENDING) grandPending = true;
+            else grand[k] += Number(row[k] || 0);
+        });
+
+        if (isGist && aorGistExpanded) {
+            if (!aorLive.gistBreakdown) {
+                html += '<tr class="sub-row"><td class="row-label" colspan="9">Calculating Gist account owners...</td></tr>';
+            } else if (aorLive.gistBreakdown.length === 0) {
+                html += '<tr class="sub-row"><td class="row-label" colspan="9">No Gist Account Owner values found.</td></tr>';
+            } else {
+                aorLive.gistBreakdown.forEach(function(g) {
+                    var subRow = rowValues(g.stats, g.won, g.lost);
+                    html += '<tr class="sub-row"><td class="row-label">' + escapeHtml(g.name) + '</td>';
+                    keys.forEach(function(k, i) { html += cell(subRow[k], ownerName, categories[i], g.name); });
+                    html += '</tr>';
+                });
+            }
+        }
+    });
+
+    if (aorLive.ownerNames.length > 1) {
+        html += '<tr class="grand-total"><td class="row-label">Grand Total</td>';
+        keys.forEach(function(k) {
+            var pending = grandPending && ["closed_won", "closed_lost"].indexOf(k) === -1;
+            html += '<td>' + (pending ? PENDING : grand[k]) + '</td>';
+        });
+        html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    html += '<div class="data-source">Accounts with at least one Deal Type New deal. Closed Won and Closed Lost count ACCOUNTS ' +
+        'with a deal in that stage group (Deal Year ' + FY_FILTER + ', Actual Order Date / Closing Date in the selected period), ' +
+        'including Knimbus Default. The Stage-wise funnel counts DEALS and leaves Knimbus Default out, so its numbers are smaller.</div>';
+
+    container.innerHTML = html;
+
+    container.querySelectorAll(".clickable").forEach(function(el) {
+        el.onclick = function() {
+            var gist = el.getAttribute("data-gist");
+            var owner = el.getAttribute("data-owners");
+            openDrilldown({ names: [owner], gist: gist ? [gist] : aorLive.gistSelection, label: owner + (gist ? " / " + gist : "") },
+                el.getAttribute("data-cat"));
+        };
+    });
+}
+
+
+/* =========================================================
+   DRILLDOWN
+   ========================================================= */
+
+function zohoSearchAll(module, criteria) {
+
+    return new Promise(function(resolve) {
+
+        var allRecords = [];
+        var page = 1;
+
+        function fetchPage() {
+
+            var searchPromise = criteria
+                ? ZOHO.CRM.API.searchRecord({ Entity: module, Type: "criteria", Query: criteria, page: page, per_page: 200 })
+                : ZOHO.CRM.API.getAllRecords({ Entity: module, sort_order: "asc", page: page, per_page: 200 });
+
+            searchPromise
+                .then(function(response) {
+                    if (response && response.data) allRecords = allRecords.concat(response.data);
+                    if (response && response.info && response.info.more_records === true && page < 150) {
+                        page++;
+                        fetchPage();
+                    } else {
+                        resolve(allRecords);
+                    }
+                })
+                .catch(function(err) {
+                    console.error(module + " fetch stopped on page " + page + ":", err);
+                    resolve(allRecords);
+                });
+        }
+
+        fetchPage();
+    });
+}
+
+
+function ddLookupId(value) {
+    if (value && typeof value === "object") return String(value.id || "");
+    return String(value || "");
+}
+
+
+function ddLookupName(value, fallback) {
+    if (value && typeof value === "object") return value.name || (fallback || "Unassigned");
+    return fallback || "Unassigned";
+}
+
+
+/* Date-only values ("2026-04-01") are read as local dates, so 1 April stays in Q1 */
+function ddParseDate(value) {
+    if (!value) return null;
+    var s = String(value).trim();
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+
+function monthQuarter(date) {
+    if (!date) return null;
+    var month = date.getMonth() + 1;
+    if (month >= 4 && month <= 6) return "Q1";
+    if (month >= 7 && month <= 9) return "Q2";
+    if (month >= 10 && month <= 12) return "Q3";
+    return "Q4";
+}
+
+
+function attachDrilldownHandlers() {
+    document.querySelectorAll("#content .clickable").forEach(function(el) {
+        el.onclick = function() {
+            var category = el.getAttribute("data-cat");
+            if (!category) return;
+            openDrilldown({ names: effectiveOwnerNames(), gist: currentGistSelection(), label: ownersLabel() }, category);
+        };
+    });
+}
+
+
+function categoryLabel(category) {
+
+    var labels = {
+        "target": "Target",
+        "achieved": "Achieved (Closed Won)",
+        "payment_received": "Payment Received",
+        "payment_pending": "Payment Pending",
+        "current_pipeline": "Current Pipeline",
+        "total_accounts": "Total Accounts",
+        "untouched": "Untouched Accounts",
+        "touched": "Touched Accounts",
+        "aging:last_30": "Touched in Last 30 Days",
+        "aging:days_31_60": "Touched 31-60 Days Ago",
+        "aging:days_60_plus": "Touched 60+ Days Ago",
+        "won_accounts": "Closed Won Accounts",
+        "lost_accounts": "Closed Lost Accounts"
+    };
+
+    if (labels[category]) return labels[category];
+
+    var parts = category.split(":");
+
+    if (parts[0] === "bucket") return decodeURIComponent(parts[1]) + " - " + parts[2].replace(/_/g, " ");
+    if (parts[0] === "qp") return decodeURIComponent(parts[1]) + " " + decodeURIComponent(parts[2]) + " Expected Business";
+    if (parts[0] === "quarter_pipeline") return decodeURIComponent(parts[1]) + " Pipeline (by account owner)";
+    if (parts[0] === "stage") return decodeURIComponent(parts[1]);
+    if (parts[0] === "team") {
+        var row = parts[1] === "others" ? { team: "Others" } : (SALES_TEAM_TARGETS[Number(parts[1])] || { team: "Team" });
+        var period = parts[2] === "FY" ? FY_LONG_LABEL : parts[2];
+        return row.team + ", " + period + (parts[3] === "pipelineA" ? " Pipeline (Plan A)" : " Achieved");
+    }
+
+    return category;
+}
+
+
+var CARD_DETAIL_CATEGORIES = ["target", "achieved", "payment_received", "payment_pending",
+    "total_accounts", "untouched", "touched", "current_pipeline"];
+
+
+function openDrilldown(scope, category) {
+
+    var modal = document.getElementById("drilldownModal");
+    var box = document.getElementById("drilldownBox");
+    var title = document.getElementById("drilldownTitle");
+    var body = document.getElementById("drilldownBody");
+    var isDetail = CARD_DETAIL_CATEGORIES.indexOf(category) !== -1;
+
+    var isTeam = category.indexOf("team:") === 0;
+    title.innerText = (isTeam ? "" : scope.label + " - ") + categoryLabel(category) +
+        (isDetail ? " (" + periodLabel(currentQuarterSelection()) + ")" : "");
+    body.innerHTML = "Loading...";
+
+    box.classList.toggle("wide", isDetail);
+    positionModal(modal, box);
+    modal.classList.add("open");
+
+    var work = isDetail ? runCardDetail(scope, category) : runDrilldown(scope, category).then(renderNameList);
+
+    work
+        .then(function(html) {
+            body.innerHTML = html;
+            positionModal(modal, box);
+        })
+        .catch(function(err) {
+            body.innerHTML = '<div class="modal-empty">Failed to load records.</div>';
+            console.error("Drilldown error:", err);
+        });
+}
+
+
+/* Place the popup near the click, kept inside the page */
+function positionModal(modal, box) {
+    var pageHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    modal.style.height = pageHeight + "px";
+    var boxHeight = box.offsetHeight || 400;
+    var top = Math.max(10, Math.min(lastClickY - 60, pageHeight - boxHeight - 10));
+    box.style.top = top + "px";
+}
+
+
+function renderNameList(names) {
+    if (!names || names.length === 0) return '<div class="modal-empty">No matching records found.</div>';
+    var html = '<div class="modal-count">' + accountsLabel(names.length) + '</div><ul>';
+    names.forEach(function(name) { html += "<li>" + escapeHtml(name) + "</li>"; });
+    return html + "</ul>";
+}
+
+
+function fmtDate(value) {
+    if (!value) return "—";
+    var d = ddParseDate(value);
+    if (!d) return escapeHtml(String(value));
+    var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return ("0" + d.getDate()).slice(-2) + "-" + months[d.getMonth()] + "-" + d.getFullYear();
+}
+
+
+function detailValue(info, deal, account) {
+    if (!info || !info.found) return "—";
+    var record = info.module === "Deals" ? deal : (account && account.raw);
+    var value = record ? record[info.api] : null;
+    if (value === null || value === undefined || value === "") return "—";
+    if (/date/i.test(info.label + " " + info.api)) return fmtDate(fieldValueText(value));
+    return escapeHtml(fieldValueText(value));
+}
+
+
+function latestDeal(deals) {
+    return (deals || []).slice().sort(function(a, b) {
+        return String(b.Modified_Time || b.Created_Time || "").localeCompare(String(a.Modified_Time || a.Created_Time || ""));
+    })[0] || null;
+}
+
+
+function detailTable(columns, rows, summaryHtml) {
+    if (!rows.length) return (summaryHtml || "") + '<div class="modal-empty">No matching records found.</div>';
+    var html = (summaryHtml || "") + '<div class="table-scroll"><table class="detail-table"><thead><tr>';
+    columns.forEach(function(c) { html += '<th class="' + (c.logic ? "logic" : "") + '">' + escapeHtml(c.title) + '</th>'; });
+    html += '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+        html += '<tr>';
+        columns.forEach(function(c) {
+            html += '<td class="' + (c.left ? "left " : "") + (c.logic ? "logic" : "") + '">' + (r[c.key] === undefined ? "—" : r[c.key]) + '</td>';
+        });
+        html += '</tr>';
+    });
+    return html + '</tbody></table></div>';
+}
+
+
+var CARD_LOGIC = {
+    achieved: { dateKey: "actualOrderDate", dateTitle: "Actual Order Date", quarterKey: "actual",
+        rule: "Closed Won stage, Deal Type New, Deal Year " + FY_FILTER + ", Actual Order Date in FY, deal owner selected, test deals left out" },
+    payment_received: { dateKey: "paymentDate", dateTitle: "Payment Receiving Date", quarterKey: "payment",
+        rule: "Payment Received / Part Payment Received / Short Payment, Deal Type New, Deal Year " + FY_FILTER + ", Payment Receiving Date in FY, deal owner selected, test deals left out. Amount = Payment Received Amount" },
+    payment_pending: { dateKey: "closingDate", dateTitle: "Closing Date", quarterKey: "closing",
+        rule: "Email Confirmation / PI Sent - Order Received, Deal Type New, Deal Year " + FY_FILTER + ", Closing Date in FY, deal owner selected" },
+    current_pipeline: { dateKey: "expectedOrderDate", dateTitle: "Expected Order Date", quarterKey: "expected",
+        rule: "Open stage, Deal Type New, Deal Year " + FY_FILTER + ", Expected Order Date in FY, Product isn't Knimbus Default, deal owner = account owner" }
+};
+
+
+async function runCardDetail(scope, category) {
+
+    var live = await loadLiveData();
+    var ownerSet = ownerSetFromNames(scope.names, live).set;
+    var gistSelection = scope.gist || [];
+    var selectedQuarter = currentQuarterSelection();
+
+    // ---- Target ----
+    if (category === "target") {
+        var teamRows = teamRowsInScope(scope.names, gistSelection);
+        var rowsT = teamRows.map(function(item) {
+            var row = item.row;
+            var r = {
+                team: escapeHtml(row.team),
+                matchedBy: escapeHtml((row.owners || []).length ? "Owner: " + row.owners.join(", ") : "Gist Account Owner contains: " + (row.gist || []).join(", ")),
+                fy: formatLakh(teamFyTarget(row)),
+                period: formatLakh(teamTarget(row, selectedQuarter))
+            };
+            QUARTERS.forEach(function(q) { r[q] = formatLakh(teamQuarterTarget(row, q)); });
+            return r;
+        });
+        var colsT = [{ key: "team", title: "Sales Team", left: true }, { key: "matchedBy", title: "Matched by", left: true },
+            { key: "fy", title: "FY Target" }]
+            .concat(QUARTERS.map(function(q) { return { key: q, title: q + " Target" }; }))
+            .concat([{ key: "period", title: "Target for " + (selectedQuarter === ALL_QUARTERS ? "FY" : selectedQuarter), logic: true }]);
+        var sumT = teamRows.reduce(function(s, item) { return s + teamTarget(item.row, selectedQuarter); }, 0);
+        return detailTable(colsT, rowsT, '<div class="modal-summary"><strong>' + teamRows.length + (teamRows.length === 1 ? ' team' : ' teams') + '</strong>, total target <strong>' +
+            formatLakh(sumT) + '</strong>. Targets come from SALES_TEAM_TARGETS in the widget.</div>');
+    }
+
+    // ---- Deal cards ----
+    if (CARD_LOGIC[category]) {
+
+        var logic = CARD_LOGIC[category];
+        var rows = [];
+        var total = 0;
+        var accountSet = {};
+
+        live.deals.forEach(function(deal) {
+
+            var ctx = dealContext(deal, live, selectedQuarter, gistSelection, true);
+            if (!ctx || !matchesCardCategory(ctx, category, ownerSet)) return;
+
+            total += cardAmount(ctx, category);
+            accountSet[ctx.accId] = true;
+
+            rows.push({
+                sortKey: ctx.accName.toLowerCase(),
+                deal: escapeHtml(deal.Deal_Name || "(No name)"),
+                account: escapeHtml(ctx.accName),
+                owner: escapeHtml(ctx.dealOwnerName || "—"),
+                accountOwner: escapeHtml(ctx.account ? ctx.account.ownerName : "—"),
+                stage: escapeHtml(ctx.stage),
+                logicDate: fmtDate(fieldValueText(deal[fieldInfo[logic.dateKey].api])) + " (" + (ctx.dateQuarters[logic.quarterKey] || "—") + ")",
+                expectedBusiness: formatLakh(ctx.amount),
+                paymentReceivedAmount: formatLakh(ctx.paymentAmount),
+                paymentReceivingDate: fmtDate(fieldValueText(deal[fieldInfo.paymentDate.api])),
+                ouCode: detailValue(fieldInfo.ouCode, deal, ctx.account),
+                subStartDate: detailValue(fieldInfo.subStartDate, deal, ctx.account),
+                dealYear: escapeHtml(dealFiscalYear(deal) || "—"),
+                dealType: escapeHtml(fieldValueText(deal[fieldInfo.dealType.api]) || "—"),
+                product: escapeHtml(ctx.products.join(", ") || "—"),
+                plan: escapeHtml(ctx.plan)
+            });
+        });
+
+        rows.sort(function(a, b) { return a.sortKey.localeCompare(b.sortKey); });
+
+        var cols = [
+            { key: "deal", title: "Deal", left: true },
+            { key: "account", title: "Account", left: true },
+            { key: "owner", title: "Owner", left: true }
+        ];
+        if (category === "current_pipeline") cols.push({ key: "accountOwner", title: "Account Owner", left: true, logic: true });
+        cols = cols.concat([
+            { key: "stage", title: "Stage", left: true, logic: true },
+            { key: "logicDate", title: logic.dateTitle + " (Quarter)", logic: true }
+        ]);
+        if (category === "payment_received") {
+            cols.push({ key: "paymentReceivedAmount", title: "Payment Received Amount", logic: true });
+            cols.push({ key: "expectedBusiness", title: "Expected Business" });
+        } else {
+            cols.push({ key: "expectedBusiness", title: "Expected Business", logic: true });
+            cols.push({ key: "paymentReceivingDate", title: "Payment Receiving Date" });
+        }
+        cols = cols.concat([
+            { key: "ouCode", title: "OU Code" },
+            { key: "subStartDate", title: "Sub Start Date" },
+            { key: "dealYear", title: "Deal Year", logic: true },
+            { key: "dealType", title: "Deal Type", logic: true },
+            { key: "product", title: "Product", logic: category === "current_pipeline" },
+            { key: "plan", title: "Plan" }
+        ]);
+
+        var summary = '<div class="modal-summary"><strong>' + rows.length + (rows.length === 1 ? ' deal' : ' deals') + '</strong>, ' +
+            accountsLabel(Object.keys(accountSet).length) + ', total <strong>' + formatLakh(total) + '</strong>.<br>Rule: ' +
+            escapeHtml(logic.rule) + (selectedQuarter !== ALL_QUARTERS ? ", " + logic.dateTitle + " in " + selectedQuarter : "") +
+            '. Highlighted columns are the ones the rule checks.' + missingDetailNote() + '</div>';
+
+        return detailTable(cols, rows, summary);
+    }
+
+    // ---- Account cards ----
+    var accounts = filterAccounts(live, ownerSet, gistSelection);
+    var calls = await getCallsForOwners(ownerSet);
+    var latest = latestOwnerCalls(accounts, calls);
+    var now = new Date();
+    var rowsA = [];
+    var ebTotal = 0;
+    var showGist = accounts.some(function(a) { return a.gistNames.length; });
+
+    accounts.forEach(function(account) {
+
+        var lastCall = latest[account.id];
+        if (category === "untouched" && lastCall) return;
+        if (category === "touched" && !lastCall) return;
+
+        var newDeals = live.newDealsByAccount[account.id] || [];
+        var fyNewDeals = newDeals.filter(function(d) { return dealFiscalYear(d) === FY_FILTER; });
+        var eb = fyNewDeals.reduce(function(s, d) { return s + dealAmountLakh(d); }, 0);
+        var ref = latestDeal(fyNewDeals.length ? fyNewDeals : newDeals);
+        ebTotal += eb;
+
+        var status = "Untouched";
+        if (lastCall) {
+            var age = agingOf(lastCall);
+            status = age === "last_30" ? "Touched, last 30 days" : (age === "days_31_60" ? "Touched, 31-60 days" : "Touched, 60+ days");
+        }
+
+        rowsA.push({
+            sortKey: account.name.toLowerCase(),
+            account: escapeHtml(account.name),
+            owner: escapeHtml(account.ownerName),
+            gist: escapeHtml(account.gistNames.join(", ") || "—"),
+            bucket: escapeHtml(account.bucket),
+            newDeals: String(newDeals.length),
+            lastCall: lastCall ? fmtDate(lastCall.toISOString().slice(0, 10)) : "—",
+            daysSince: lastCall ? String(Math.floor((now - lastCall) / 86400000)) : "—",
+            status: status,
+            expectedBusiness: formatLakh(eb),
+            paymentReceivingDate: ref ? fmtDate(fieldValueText(ref[fieldInfo.paymentDate.api])) : "—",
+            ouCode: detailValue(fieldInfo.ouCode, ref, account),
+            subStartDate: detailValue(fieldInfo.subStartDate, ref, account)
+        });
+    });
+
+    rowsA.sort(function(a, b) { return a.sortKey.localeCompare(b.sortKey); });
+
+    var colsA = [
+        { key: "account", title: "Account", left: true },
+        { key: "owner", title: "Owner", left: true, logic: true }
+    ];
+    if (showGist) colsA.push({ key: "gist", title: "Gist Account Owner", left: true });
+    colsA = colsA.concat([
+        { key: "newDeals", title: "Deal Type New Deals", logic: true },
+        { key: "lastCall", title: "Last Call by Owner", logic: category !== "total_accounts" },
+        { key: "daysSince", title: "Days Since Call" },
+        { key: "status", title: "Status", left: true, logic: category !== "total_accounts" },
+        { key: "bucket", title: "Bucket", left: true },
+        { key: "expectedBusiness", title: "Expected Business (" + FY_SHORT_LABEL + ")" },
+        { key: "paymentReceivingDate", title: "Payment Receiving Date" },
+        { key: "ouCode", title: "OU Code" },
+        { key: "subStartDate", title: "Sub Start Date" }
+    ]);
+
+    var ruleA = {
+        total_accounts: "accounts of the selected owner with at least one Deal Type New deal",
+        untouched: "those accounts with no call logged by the account owner",
+        touched: "those accounts with at least one call logged by the account owner"
+    }[category];
+
+    var summaryA = '<div class="modal-summary"><strong>' + accountsLabel(rowsA.length) + '</strong>, Expected Business <strong>' +
+        formatLakh(ebTotal) + '</strong>.<br>Rule: ' + escapeHtml(ruleA) + '. Expected Business is the sum of the account\'s Deal Type New ' +
+        'deals with Deal Year ' + FY_FILTER + '; Payment Receiving Date comes from its latest Deal Type New deal; OU Code and Sub Start Date come from the account, or from its latest ' +
+        'Deal Type New deal when the field is on Deals.' + missingDetailNote() + '</div>';
+
+    return detailTable(colsA, rowsA, summaryA);
+}
+
+
+function missingDetailNote() {
+    var missing = [["paymentDate", "Payment Receiving Date"], ["paymentAmount", "Payment Received Amount"], ["ouCode", "OU Code"], ["subStartDate", "Sub Start Date"]]
+        .filter(function(pair) { return !fieldInfo[pair[0]].found; })
+        .map(function(pair) { return pair[1]; });
+    return missing.length ? '<br><span style="color:#b45309;">Not found in CRM: ' + missing.join(", ") +
+        '. Set its API name in DETAIL_FIELDS at the top of the widget.</span>' : "";
+}
+
+
+function closeDrilldown() {
+    document.getElementById("drilldownModal").classList.remove("open");
+}
+
+
+function sortNames(names) {
+    return names.sort(function(a, b) { return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); });
+}
+
+
+async function runDrilldown(scope, category) {
+
+    var live = await loadLiveData();
+    var ownerSet = ownerSetFromNames(scope.names, live).set;
+    var gistSelection = scope.gist || [];
+    var selectedQuarter = currentQuarterSelection();
+
+    var parts = category.split(":");
+    var kind = parts[0];
+    var unique = {};
+
+    // ---- Target vs Achievement ----
+    if (kind === "team") {
+
+        var isOthers = parts[1] === "others";
+        var teamIndex = Number(parts[1]);
+        var period = parts[2];
+
+        live.deals.forEach(function(deal) {
+            var ctx = dealContext(deal, live, ALL_QUARTERS, isOthers ? gistSelection : [], true);
+            if (!ctx) return;
+            if (isOthers ? !othersDealMatches(ctx, scope.names) : teamIndexForDeal(ctx) !== teamIndex) return;
+            var isPipelineA = parts[3] === "pipelineA";
+            var dealQuarter = isPipelineA ? ctx.dateQuarters.expected : ctx.dateQuarters.actual;
+            if (period !== "FY" && dealQuarter !== period) return;
+            var ok = isPipelineA
+                ? cardStageMatch(ctx, "current_pipeline_all_products") && ctx.plan.trim().toLowerCase() === "plan a"
+                : cardStageMatch(ctx, "achieved");
+            if (ok) unique[ctx.accId] = ctx.accName;
+        });
+
+        return sortNames(Object.values(unique));
+    }
+
+    // ---- Deal-based ----
+    var dealKinds = ["qp", "quarter_pipeline", "stage", "won_accounts", "lost_accounts"];
+
+    if (CARD_CATEGORIES.indexOf(category) !== -1 || dealKinds.indexOf(kind) !== -1) {
+
+        var isCard = CARD_CATEGORIES.indexOf(category) !== -1;
+
+        live.deals.forEach(function(deal) {
+
+            var ctx = dealContext(deal, live, selectedQuarter, gistSelection, isCard);
+            if (!ctx) return;
+
+            var ok = false;
+
+            if (isCard) {
+                ok = matchesCardCategory(ctx, category, ownerSet);
+            } else if (matchesAccountOwner(ctx, ownerSet)) {
+                if (kind === "won_accounts") {
+                    ok = !isRemovedStage(ctx.stage) && isClosedWonStage(ctx.stage) && !ctx.excluded;
+                } else if (kind === "lost_accounts") {
+                    ok = isClosedLostStage(ctx.stage);
+                } else if (chartEligible(ctx)) {
+                    if (kind === "qp") {
+                        ok = ctx.quarter === decodeURIComponent(parts[1]) && ctx.plan === decodeURIComponent(parts[2]) && countsAsExpected(ctx);
+                    } else if (kind === "quarter_pipeline") {
+                        ok = ctx.quarter === decodeURIComponent(parts[1]) && isPipelineDeal(ctx);
+                    } else if (kind === "stage") {
+                        ok = stageGroupOf(ctx.stage) === decodeURIComponent(parts[1]);
                     }
                 }
+            }
 
-
-                return true;
-
-            });
-
-
-        /*
-         Sort alphabetically
-        */
-
-        filteredAccounts.sort((a, b) => {
-
-            const nameA =
-                (a.Account_Name || "").toLowerCase();
-
-            const nameB =
-                (b.Account_Name || "").toLowerCase();
-
-            return nameA.localeCompare(nameB);
-
+            if (ok) unique[ctx.accId] = ctx.accName;
         });
 
-
-        /*
-         Update result count
-        */
-
-        document.getElementById(
-            "resultCount"
-        ).innerText =
-            "Showing " +
-            filteredAccounts.length +
-            " of " +
-            allAccounts.length +
-            " accounts";
-
-
-        /*
-         Build table
-        */
-
-        filteredAccounts.forEach(
-            (account, index) => {
-
-                const accountId =
-                    String(account.id);
-
-                const accountName =
-                    account.Account_Name ||
-                    "Unnamed Account";
-
-                const hasDeal =
-                    dealAccountIds.has(accountId);
-
-                const status =
-                    hasDeal
-                    ? "DEAL"
-                    : "NO DEAL";
-
-
-                const tr =
-                    document.createElement("tr");
-
-
-                /*
-                 Number
-                */
-
-                const numberTd =
-                    document.createElement("td");
-
-                numberTd.innerText =
-                    index + 1;
-
-
-                /*
-                 Account Name
-                */
-
-                const nameTd =
-                    document.createElement("td");
-
-
-                const link =
-                    document.createElement("span");
-
-                link.className =
-                    "account-link";
-
-                link.innerText =
-                    accountName;
-
-
-                link.onclick = function() {
-
-                    ZOHO.CRM.UI.Record.open({
-                        Entity: "Accounts",
-                        RecordID: accountId
-                    });
-
-                };
-
-
-                nameTd.appendChild(link);
-
-
-                /*
-                 Account ID
-                */
-
-                const idTd =
-                    document.createElement("td");
-
-                idTd.innerText =
-                    accountId;
-
-
-                /*
-                 Status
-                */
-
-                const statusTd =
-                    document.createElement("td");
-
-
-                const statusSpan =
-                    document.createElement("span");
-
-                statusSpan.className =
-                    hasDeal
-                    ? "status status-deal"
-                    : "status status-no-deal";
-
-                statusSpan.innerText =
-                    status;
-
-
-                statusTd.appendChild(
-                    statusSpan
-                );
-
-
-                tr.appendChild(numberTd);
-
-                tr.appendChild(nameTd);
-
-                tr.appendChild(idTd);
-
-                tr.appendChild(statusTd);
-
-
-                tbody.appendChild(tr);
-
-            }
-        );
-
+        return sortNames(Object.values(unique));
     }
 
+    // ---- Account-based (Deal Type New accounts) ----
+    var accounts = filterAccounts(live, ownerSet, gistSelection);
 
-    /*
-     ============================================================
-     FILTER
-     ============================================================
-    */
+    if (category === "total_accounts") return sortNames(accounts.map(function(a) { return a.name; }));
 
-    function setFilter(filter) {
+    var calls = await getCallsForOwners(ownerSet);
+    var latest = latestOwnerCalls(accounts, calls);
+    var dealStatus = kind === "bucket" ? computeAccountDealStatus(live, selectedQuarter, gistSelection) : {};
+    var matches = [];
 
-        currentFilter = filter;
+    accounts.forEach(function(account) {
 
+        var lastCall = latest[account.id];
+        var age = lastCall ? agingOf(lastCall) : null;
+        var isMatch = false;
 
-        document
-            .getElementById("filterAll")
-            .classList.remove("active");
-
-        document
-            .getElementById("filterDeal")
-            .classList.remove("active");
-
-        document
-            .getElementById("filterNoDeal")
-            .classList.remove("active");
-
-
-        if (filter === "ALL") {
-
-            document
-                .getElementById("filterAll")
-                .classList.add("active");
-
+        if (category === "untouched") isMatch = !lastCall;
+        else if (category === "touched") isMatch = !!lastCall;
+        else if (kind === "aging") isMatch = age === parts[1];
+        else if (kind === "bucket" && account.bucket === decodeURIComponent(parts[1])) {
+            var ds = dealStatus[account.id] || {};
+            if (parts[2] === "Total") isMatch = true;
+            else if (parts[2] === "open_deals") isMatch = !!ds.open;
+            else if (parts[2] === "closed_lost") isMatch = !!ds.lost;
+            else if (parts[2] === "closed_won") isMatch = !!ds.won;
+            else if (parts[2] === "non_touched") isMatch = !lastCall;
+            else isMatch = age === parts[2];
         }
 
-        else if (filter === "DEAL") {
-
-            document
-                .getElementById("filterDeal")
-                .classList.add("active");
-
-        }
-
-        else if (filter === "NO DEAL") {
-
-            document
-                .getElementById("filterNoDeal")
-                .classList.add("active");
-
-        }
-
-
-        renderTable();
-
-    }
-
-
-    /*
-     ============================================================
-     APPLY FILTERS
-     ============================================================
-    */
-
-    function applyFilters() {
-
-        renderTable();
-
-    }
-
-
-    /*
-     ============================================================
-     DEBUG
-     ============================================================
-    */
-
-    function renderDebug(stats) {
-
-        const totalAccounts =
-            allAccounts.length;
-
-        const withDeal =
-            dealAccountIds.size;
-
-        const noDeal =
-            totalAccounts - withDeal;
-
-
-        const check =
-            withDeal + noDeal;
-
-
-        const debugText =
-
-            "========== DEBUG ==========\n" +
-
-            "Account Owner: " +
-            ACCOUNT_OWNER + "\n" +
-
-            "Deal Owner: " +
-            DEAL_OWNER + "\n" +
-
-            "Deal Year Field: " +
-            DEAL_YEAR_FIELD + "\n" +
-
-            "Target Deal Year: " +
-            TARGET_DEAL_YEAR + "\n\n" +
-
-            "Unique Anurag Accounts: " +
-            totalAccounts + "\n" +
-
-            "Total Deals Fetched: " +
-            stats.totalDeals + "\n" +
-
-            "Deals owned by Anurag: " +
-            stats.ownerDeals + "\n" +
-
-            "Anurag Deals with Year " +
-            TARGET_DEAL_YEAR + ": " +
-            stats.ownerYearDeals + "\n" +
-
-            "Target Deals with Account: " +
-            stats.ownerYearDealsWithAccount + "\n" +
-
-            "Target Deals matching Anurag Accounts: " +
-            stats.matchingAccounts + "\n\n" +
-
-            "UNIQUE ACCOUNTS WITH DEAL: " +
-            withDeal + "\n" +
-
-            "NO DEAL ACCOUNTS: " +
-            noDeal + "\n\n" +
-
-            "CHECK: With Deal + No Deal = " +
-            check + "\n" +
-
-            "CHECK SHOULD EQUAL TOTAL = " +
-            totalAccounts + "\n" +
-
-            "============================";
-
-
-        const debugBox =
-            document.getElementById(
-                "debugBox"
-            );
-
-        debugBox.innerText =
-            debugText;
-
-        debugBox.style.display =
-            "block";
-
-    }
-
-
-    /*
-     ============================================================
-     MAIN LOAD
-     ============================================================
-    */
-
-    async function loadData() {
-
-        try {
-
-            document.getElementById(
-                "tableLoading"
-            ).innerText =
-                "Loading Anurag Mishra accounts...";
-
-
-            /*
-             Fetch Accounts
-            */
-
-            allAccounts =
-                await fetchAnuragAccounts();
-
-
-            /*
-             Create Set of Account IDs
-            */
-
-            const anuragAccountIds =
-                new Set(
-                    allAccounts.map(
-                        account =>
-                            String(account.id)
-                    )
-                );
-
-
-            console.log(
-                "Unique Anurag Account IDs:",
-                anuragAccountIds
-            );
-
-
-            document.getElementById(
-                "tableLoading"
-            ).innerText =
-                "Loading deals...";
-
-
-            /*
-             Fetch Deals
-            */
-
-            const deals =
-                await fetchDeals();
-
-
-            /*
-             Build unique FY Deal Account Set
-            */
-
-            const dealResult =
-                buildDealAccountSet(
-                    deals,
-                    anuragAccountIds
-                );
-
-
-            dealAccountIds =
-                dealResult.set;
-
-
-            /*
-             Add total deals for debug
-            */
-
-            const debugStats = {
-
-                totalDeals:
-                    deals.length,
-
-                ownerDeals:
-                    dealResult.ownerDeals,
-
-                ownerYearDeals:
-                    dealResult.ownerYearDeals,
-
-                ownerYearDealsWithAccount:
-                    dealResult.ownerYearDealsWithAccount,
-
-                matchingAccounts:
-                    dealResult.matchingAccounts
-
-            };
-
-
-            console.log(
-                "Final unique Deal Account IDs:",
-                Array.from(dealAccountIds)
-            );
-
-
-            /*
-             Render KPI
-            */
-
-            renderKPI();
-
-
-            /*
-             Render table
-            */
-
-            renderTable();
-
-
-            /*
-             Render debug
-            */
-
-            renderDebug(
-                debugStats
-            );
-
-
-            /*
-             Hide loading
-            */
-
-            document.getElementById(
-                "tableLoading"
-            ).style.display =
-                "none";
-
-
-            document.getElementById(
-                "accountTable"
-            ).style.display =
-                "table";
-
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "Widget error:",
-                error
-            );
-
-
-            showError(
-                "Error loading data:\n\n" +
-                (
-                    error &&
-                    error.message
-                    ? error.message
-                    : JSON.stringify(error)
-                )
-            );
-
-
-            document.getElementById(
-                "tableLoading"
-            ).innerText =
-                "Failed to load data.";
-
-        }
-
-    }
-
-
-    /*
-     ============================================================
-     ZOHO INITIALIZATION
-     ============================================================
-    */
-
-    ZOHO.embeddedApp.on(
-        "PageLoad",
-        function(data) {
-
-            console.log(
-                "Zoho Widget PageLoad:",
-                data
-            );
-
-            loadData();
-
-        }
-    );
-
-
-    ZOHO.embeddedApp.init();
+        if (isMatch) matches.push(account.name);
+    });
+
+    return sortNames(matches);
+}
+
+
+function escapeHtml(value) {
+    if (value === undefined || value === null) return "";
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
 </script>
 
