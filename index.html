@@ -52,6 +52,8 @@
 
         .card-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
         .card-row.five { grid-template-columns: repeat(5, 1fr); }
+        .card-row.focus { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+        @media (max-width: 1250px) { .card-row.focus { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
         .card { background: #ffffff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center; }
         .card-title { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
         .card-value { font-size: 26px; font-weight: bold; color: #111827; }
@@ -226,6 +228,8 @@
    ========================================================= */
 
 /* Financial year: 1 April FY_START_YEAR to 31 March FY_START_YEAR + 1 */
+var WIDGET_VERSION = "v8 - 24 Sep 2026 - bucket match fixed";
+
 var FY_START_YEAR = 2026;
 var FY_FILTER = FY_START_YEAR + "-" + (FY_START_YEAR + 1);   // Deal Year (Year2) value
 
@@ -276,6 +280,24 @@ var PIPELINE_REQUIRE_SAME_OWNER = true;   // Current Pipeline card: deal owner m
 var EXCLUDE_LOST_FROM_EXPECTED = true;    // Closed Lost isn't counted as expected business
 
 /* The dashboard only covers these account owners ("All Owners" = all of them) */
+/* ---- Focused accounts ----
+ * Focused accounts = unique accounts of two sets:
+ *   Set A: every account whose Bucket Type starts with 1, 2 or 3 (not 4, not blank)
+ *   Set B: accounts with a Deal Type New deal of Deal Year FY_FILTER whose Expected Order Date is
+ *          inside the FY and whose Product isn't Knimbus Default
+ * Pipeline - Focused leaves Knimbus Default out.
+ */
+/* Bucket Type numbers that count as focused; the value may read "2" or "Bucket 2" */
+var FOCUSED_BUCKET_PREFIXES = ["1", "2", "3"];
+
+/* "union" = Set A OR Set B (unique accounts of both). "intersection" = Set A AND Set B */
+var FOCUSED_MODE = "union";
+var TOUCHED_WINDOW_DAYS = 45;
+
+/* Demo module (Zoho custom module). "" = auto-detect; fields are auto-detected from the records */
+var DEMO_MODULE = "";
+var DEMO_FIELDS = { account: "", date: "" };
+
 var ALLOWED_ACCOUNT_OWNERS = ["Anurag Mishra", "Tejal Pandya", "Ashish Kumar", "GIST HQ"];
 
 /*
@@ -663,7 +685,7 @@ function loadReport() {
             var now = new Date();
             document.getElementById("lastUpdated").innerText = "Last Updated: " +
                 now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) + " " +
-                now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+                now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) + "  |  " + WIDGET_VERSION;
         })
         .catch(function(err) {
             console.error("My dashboard load error:", err);
@@ -689,9 +711,10 @@ function loadLiveData() {
             getFieldsSafe("Deals"),
             getFieldsSafe("Accounts"),
             zohoSearchAll("Deals", null),
-            zohoSearchAll("Accounts", null)
+            zohoSearchAll("Accounts", null),
+            fetchDemoRecords()
         ]).then(function(results) {
-            liveResolved = buildLiveData(results[0], results[1], results[2] || [], results[3] || []);
+            liveResolved = buildLiveData(results[0], results[1], results[2] || [], results[3] || [], results[4]);
             return liveResolved;
         });
 
@@ -699,6 +722,33 @@ function loadLiveData() {
     }
 
     return liveDataPromise;
+}
+
+
+/* The Demo module is a custom module, so try the likely API names until one returns records */
+function fetchDemoRecords() {
+
+    var candidates = DEMO_MODULE ? [DEMO_MODULE] : ["Demos", "Demo", "Demo_Information", "Demos1"];
+
+    function tryNext(i) {
+        if (i >= candidates.length) return Promise.resolve({ module: "", records: [] });
+        try {
+            return ZOHO.CRM.API.getAllRecords({ Entity: candidates[i], page: 1, per_page: 200 })
+                .then(function(response) {
+                    if (response && response.data && response.data.length) {
+                        return zohoSearchAll(candidates[i], null).then(function(all) {
+                            return { module: candidates[i], records: all };
+                        });
+                    }
+                    return tryNext(i + 1);
+                })
+                .catch(function() { return tryNext(i + 1); });
+        } catch (e) {
+            return tryNext(i + 1);
+        }
+    }
+
+    return tryNext(0);
 }
 
 
@@ -922,7 +972,7 @@ function chooseGistField(options, accounts) {
 }
 
 
-function buildLiveData(dealMeta, accountMeta, deals, accounts) {
+function buildLiveData(dealMeta, accountMeta, deals, accounts, demoResult) {
 
     var dealOptions = fieldOptions(dealMeta, deals);
     var accountOptions = fieldOptions(accountMeta, accounts);
@@ -1035,10 +1085,38 @@ function buildLiveData(dealMeta, accountMeta, deals, accounts) {
     Object.keys(accountsById).forEach(function(id) {
         var list = (newDealsByAccount[id] || []).filter(function(d) { return !isRemovedStage(d.Stage); });
         accountsById[id].lostOnly = list.length > 0 && list.every(function(d) { return isClosedLostStage(d.Stage); });
+
+        // Focused = unique accounts of two sets, both needing a Deal Type New deal of the FY:
+        //   Set A: Bucket Type 1 / 2 / 3 (Knimbus Default deals still count)
+        //   Set B: Expected Order Date inside the FY on a deal whose Product isn't Knimbus Default
+        var fyNew = (newDealsByAccount[id] || []).filter(function(d) { return dealFiscalYear(d) === FY_FILTER; });
+        // Set A is the bucket alone - every account in bucket 1/2/3 is focused
+        var bucketFocused = isFocusedBucket(accountsById[id].bucket);
+        var datedThisFy = fyNew.some(function(d) {
+            return !!fyQuarterOf(d[fieldInfo.expectedOrderDate.api]) && !dealHasExcludedProduct(d);
+        });
+        accountsById[id].setA = bucketFocused;
+        accountsById[id].setB = datedThisFy;
+        accountsById[id].focused = FOCUSED_MODE === "intersection"
+            ? (bucketFocused && datedThisFy) : (bucketFocused || datedThisFy);
+        accountsById[id].focusReason = bucketFocused && datedThisFy
+            ? "Bucket " + accountsById[id].bucket + " and Expected Order Date in FY"
+            : bucketFocused ? "Bucket " + accountsById[id].bucket
+            : datedThisFy ? "Expected Order Date in FY (not " + EXCLUDED_PRODUCTS.join(" / ") + ")"
+            : "Bucket " + accountsById[id].bucket + ", no dated non-" + EXCLUDED_PRODUCTS.join(" / ") + " deal in " + FY_FILTER;
     });
+
+    var demoInfo = buildDemoIndex(demoResult, accountsById);
 
     return {
         deals: deals,
+        demoModule: demoInfo.module,
+        demoFields: demoInfo.fields,
+        demoCount: demoInfo.count,
+        demoQuarters: demoInfo.byAccount,
+        bucketValues: Object.keys(accounts.reduce(function(acc, a) {
+            acc[fieldValueText(a.Bucket_Type) || "(blank)"] = true; return acc;
+        }, {})).sort(),
         newDealsByAccount: newDealsByAccount,
         dealAccount: dealAccount,
         accountsById: accountsById,
@@ -1056,6 +1134,64 @@ function buildLiveData(dealMeta, accountMeta, deals, accounts) {
 function dealHasExcludedProduct(deal) {
     var excluded = EXCLUDED_PRODUCTS.map(function(p) { return p.trim().toLowerCase(); });
     return fieldValueList(deal[fieldInfo.product.api]).some(function(p) { return excluded.indexOf(p.trim().toLowerCase()) !== -1; });
+}
+
+
+/* Matches "1", "Bucket 1", "1 - Hot", "B1" - the first number in the value decides */
+function isFocusedBucket(bucket) {
+    var found = String(bucket || "").match(/\d+/);
+    return !!found && FOCUSED_BUCKET_PREFIXES.indexOf(found[0]) !== -1;
+}
+
+
+/* Demo records: which FY quarters each account has a demo in */
+function buildDemoIndex(demoResult, accountsById) {
+
+    var records = (demoResult && demoResult.records) || [];
+    var out = { module: (demoResult && demoResult.module) || "", fields: { account: "", date: "" }, count: records.length, byAccount: {} };
+    if (!records.length) return out;
+
+    var sample = records.slice(0, 100);
+
+    out.fields.account = DEMO_FIELDS.account || (function() {
+        var best = "", bestHits = 0;
+        Object.keys(records[0] || {}).forEach(function(k) {
+            var hits = 0;
+            sample.forEach(function(r) {
+                var id = ddLookupId(r[k]);
+                if (id && accountsById[id]) hits++;
+            });
+            if (hits > bestHits) { best = k; bestHits = hits; }
+        });
+        return best || "Account";
+    })();
+
+    out.fields.date = DEMO_FIELDS.date || (function() {
+        var keys = Object.keys(records[0] || {});
+        var demoDate = keys.filter(function(k) { return /demo.*(date|time)/i.test(k); })[0];
+        return demoDate || (keys.indexOf("Created_Time") !== -1 ? "Created_Time" : keys[0]);
+    })();
+
+    records.forEach(function(r) {
+        var accId = ddLookupId(r[out.fields.account]);
+        if (!accId) return;
+        var quarter = fyQuarterOf(fieldValueText(r[out.fields.date]));
+        if (!quarter) return;
+        var entry = out.byAccount[accId] || (out.byAccount[accId] = { quarters: {}, last: null });
+        entry.quarters[quarter] = true;
+        var date = ddParseDate(fieldValueText(r[out.fields.date]));
+        if (date && (!entry.last || date > entry.last)) entry.last = date;
+    });
+
+    return out;
+}
+
+
+function accountHasDemo(live, accountId, selectedQuarter) {
+    var entry = live.demoQuarters[accountId];
+    if (!entry) return false;
+    if (!selectedQuarter || selectedQuarter === ALL_QUARTERS) return true;
+    return !!entry.quarters[selectedQuarter];
 }
 
 
@@ -1339,6 +1475,7 @@ function cardStageMatch(ctx, category, ignoreDate) {
     }
     if (category === "current_pipeline" || category === "current_pipeline_all_products") {
         if (!dateOk(q.expected)) return false;
+        if (category === "current_pipeline" && !(ctx.account && ctx.account.focused)) return false;
         if (!isPipelineDeal(ctx, category === "current_pipeline")) return false;
         return !PIPELINE_REQUIRE_SAME_OWNER || (!!ctx.account && ctx.account.ownerId === ctx.dealOwnerId);
     }
@@ -1669,6 +1806,35 @@ function computeAccountDealStatus(live, selectedQuarter, gistSelection) {
 }
 
 
+/* The six focused-account cards */
+function computeFocusedStats(live, accounts, calls, dealStatus, selectedQuarter) {
+
+    var latest = latestOwnerCalls(accounts, calls);
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - TOUCHED_WINDOW_DAYS);
+
+    var stats = { allAccounts: accounts.length, focused: 0, touched: 0, untouched: 0, demo: 0, won: 0, lost: 0,
+                  setAOnly: 0, setBOnly: 0, bothSets: 0 };
+
+    accounts.forEach(function(a) {
+        if (!a.focused) return;
+        stats.focused++;
+        if (a.setA && a.setB) stats.bothSets++;
+        else if (a.setA) stats.setAOnly++;
+        else if (a.setB) stats.setBOnly++;
+        var lastCall = latest[a.id];
+        if (lastCall && lastCall >= cutoff) stats.touched++;
+        else stats.untouched++;
+        if (accountHasDemo(live, a.id, selectedQuarter)) stats.demo++;
+        var ds = dealStatus[a.id] || {};
+        if (ds.won) stats.won++;
+        if (ds.lost) stats.lost++;
+    });
+
+    return stats;
+}
+
+
 function computeAccountStats(accounts, calls, dealStatus) {
 
     var latest = latestOwnerCalls(accounts, calls);
@@ -1679,12 +1845,13 @@ function computeAccountStats(accounts, calls, dealStatus) {
         stats.total++;
 
         if (!stats.bucket_summary[a.bucket]) {
-            stats.bucket_summary[a.bucket] = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0,
+            stats.bucket_summary[a.bucket] = { Total: 0, focused: 0, open_deals: 0, closed_lost: 0, closed_won: 0,
                 last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0, lost_nf: 0 };
         }
 
         var bs = stats.bucket_summary[a.bucket];
         bs.Total++;
+        if (a.focused) bs.focused++;
 
         var ds = dealStatus && dealStatus[a.id];
         if (ds) {
@@ -1768,26 +1935,29 @@ function renderAll() {
 
     var html = "";
 
-    html += '<div class="card-row five">';
+    html += '<div class="card-row">';
     html += cardHtml("Target (" + (allQuarters ? FY_LONG_LABEL : selectedQuarter) + ")", formatLakh(target), "target", "target", escapeHtml(targetSub));
     html += cardHtml("Achieved (Closed Won)", "Calculating...", "achieved waiting", "achieved");
     html += cardHtml("Payment Received", "Calculating...", "achieved waiting", "payment_received");
     html += cardHtml("Payment Pending", "Calculating...", "pending waiting", "payment_pending");
-    html += cardHtml("Current Pipeline", "Calculating...", "pending waiting", "current_pipeline");
     html += '</div>';
 
-    html += '<div class="card-row">';
-    html += cardHtml("Total Accounts", "Calculating...", "waiting", "total_accounts", "Accounts with a Deal Type New deal");
-    html += cardHtml("Touched", "Calculating...", "achieved waiting", "touched");
-    html += cardHtml("Untouched Accounts", "Calculating...", "pending waiting", "untouched");
-    html += cardHtml("Lost - No Follow-up", "Calculating...", "waiting", "lost_no_followup");
+    html += '<div class="card-row focus">';
+    html += cardHtml("Focused Accounts", "Calculating...", "waiting", "focused",
+        "All Bucket " + FOCUSED_BUCKET_PREFIXES.join("/") + ", plus Expected Order Date in FY (excl. " + EXCLUDED_PRODUCTS.join(", ") + ")");
+    html += cardHtml("Touched - Last " + TOUCHED_WINDOW_DAYS + " Days", "Calculating...", "achieved waiting", "focused_touched");
+    html += cardHtml("Demo Done", "Calculating...", "achieved waiting", "focused_demo");
+    html += cardHtml("Pipeline - Focused", "Calculating...", "pending waiting", "current_pipeline");
+    html += cardHtml("Closed Won (Focused)", "Calculating...", "achieved waiting", "focused_won");
+    html += cardHtml("Closed Lost (Focused)", "Calculating...", "waiting", "focused_lost");
+    html += cardHtml("Not Touched - " + TOUCHED_WINDOW_DAYS + "+ Days", "Calculating...", "pending waiting", "focused_untouched");
     html += '</div>';
 
     html += '<div class="section"><h2>Bucket-wise Activity</h2>';
     html += '<p class="section-note">Accounts with a Deal Type New deal. Open Deals, Closed Lost and Closed Won count accounts with a ' +
         'Deal Type New, Deal Year ' + FY_FILTER + ' deal in that stage (Expected Order Date / Closing Date / Actual Order Date in the ' +
         'selected period). Call activity is measured from today, so the quarter filter does not change it. ' +
-        'Last 30 + 31-60 + 60+ + Non-Touched + Lost - No Follow-up = Total.</p>';
+        'Last 30 + 31-60 + 60+ + Non-Touched + Lost - No Follow-up = Total. Focused = accounts behind the Focused Accounts card.</p>';
     html += '<div id="bucketWrap"><div class="loading">Calculating account activity...</div></div>';
     html += '</div>';
 
@@ -1843,15 +2013,24 @@ function renderAll() {
             if (myToken !== renderToken) return;
 
             var accounts = filterAccounts(live, owners.set, gistSelection);
-            var stats = computeAccountStats(accounts, calls, computeAccountDealStatus(live, selectedQuarter, gistSelection));
+            var dealStatus = computeAccountDealStatus(live, selectedQuarter, gistSelection);
+            var stats = computeAccountStats(accounts, calls, dealStatus);
 
-            setCardValue("total_accounts", stats.total);
-            setCardValue("untouched", stats.untouched);
-            setCardValue("touched", stats.touched);
-            setCardSub("untouched", accountShareSub(stats.untouched, stats.total));
-            setCardSub("touched", accountShareSub(stats.touched, stats.total));
-            setCardValue("lost_no_followup", stats.lost);
-            setCardSub("lost_no_followup", accountShareSub(stats.lost, stats.total));
+            var focus = computeFocusedStats(live, accounts, calls, dealStatus, selectedQuarter);
+
+            setCardValue("focused", focus.focused);
+            setCardSub("focused", accountShareSub(focus.focused, focus.allAccounts) + " of this owner" +
+                '<br>Bucket only ' + focus.setAOnly + ', date only ' + focus.setBOnly + ', both ' + focus.bothSets);
+            setCardValue("focused_touched", focus.touched);
+            setCardSub("focused_touched", accountShareSub(focus.touched, focus.focused));
+            setCardValue("focused_demo", focus.demo);
+            setCardSub("focused_demo", accountShareSub(focus.demo, focus.focused) + demoSourceNote(live));
+            setCardValue("focused_untouched", focus.untouched);
+            setCardSub("focused_untouched", accountShareSub(focus.untouched, focus.focused));
+            setCardValue("focused_won", focus.won);
+            setCardSub("focused_won", accountShareSub(focus.won, focus.focused));
+            setCardValue("focused_lost", focus.lost);
+            setCardSub("focused_lost", accountShareSub(focus.lost, focus.focused));
 
             var bucketWrap = document.getElementById("bucketWrap");
             if (bucketWrap) bucketWrap.innerHTML = renderBucketTable(stats.bucket_summary);
@@ -1881,7 +2060,8 @@ function showLiveError(message) {
         var el = document.getElementById(id);
         if (el) el.innerHTML = html;
     });
-    CARD_CATEGORIES.concat(["total_accounts", "untouched", "touched", "lost_no_followup"]).forEach(function(cat) {
+    CARD_CATEGORIES.concat(["focused", "focused_touched", "focused_demo", "focused_untouched",
+        "focused_won", "focused_lost"]).forEach(function(cat) {
         var el = document.getElementById("card-" + cat);
         if (el && el.classList.contains("waiting")) setCardValue(cat, "—");
     });
@@ -1950,6 +2130,12 @@ function targetShareSub(amountLakh, targetLakh) {
 }
 
 
+function demoSourceNote(live) {
+    if (live.demoModule) return "";
+    return '<br><span style="color:#b45309;">No Demo module found. Set DEMO_MODULE at the top of the widget.</span>';
+}
+
+
 function accountsLabel(n) {
     return Number(n).toLocaleString("en-IN") + (n === 1 ? " account" : " accounts");
 }
@@ -1999,10 +2185,10 @@ function renderBucketTable(bucketSummary) {
     if (buckets.length === 0) return '<div class="loading">No accounts for the selected filters.</div>';
 
     var html = '<div class="table-scroll"><table><thead><tr><th style="text-align:left;">Bucket</th>' +
-        '<th>Total</th><th>Open Deals</th><th>Closed Lost</th><th>Closed Won</th>' +
+        '<th>Total</th><th>Focused</th><th>Open Deals</th><th>Closed Lost</th><th>Closed Won</th>' +
         '<th>Last 30 Days</th><th>31-60 Days</th><th>60+ Days</th><th>Non-Touched</th><th>Lost - No Follow-up</th></tr></thead><tbody>';
 
-    var grand = { Total: 0, open_deals: 0, closed_lost: 0, closed_won: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0, lost_nf: 0 };
+    var grand = { Total: 0, focused: 0, open_deals: 0, closed_lost: 0, closed_won: 0, last_30: 0, days_31_60: 0, days_60_plus: 0, non_touched: 0, lost_nf: 0 };
 
     function bucketCell(count, category) {
         if (count && count > 0) return '<td class="clickable plain" data-cat="' + escapeHtml(category) + '">' + count + '</td>';
@@ -2016,6 +2202,7 @@ function renderBucketTable(bucketSummary) {
 
         html += '<tr><td class="row-label">' + escapeHtml(bucket) + '</td>';
         html += bucketCell(row.Total, prefix + "Total");
+        html += bucketCell(row.focused, prefix + "focused");
         html += bucketCell(row.open_deals, prefix + "open_deals");
         html += bucketCell(row.closed_lost, prefix + "closed_lost");
         html += bucketCell(row.closed_won, prefix + "closed_won");
@@ -2030,7 +2217,7 @@ function renderBucketTable(bucketSummary) {
     });
 
     html += '<tr class="grand-total"><td class="row-label">Grand Total</td>' +
-        '<td>' + grand.Total + '</td><td>' + grand.open_deals + '</td><td>' + grand.closed_lost + '</td><td>' +
+        '<td>' + grand.Total + '</td><td>' + grand.focused + '</td><td>' + grand.open_deals + '</td><td>' + grand.closed_lost + '</td><td>' +
         grand.closed_won + '</td><td>' + grand.last_30 + '</td>' +
         '<td>' + grand.days_31_60 + '</td><td>' + grand.days_60_plus + '</td>' +
         '<td>' + grand.non_touched + '</td><td>' + grand.lost_nf + '</td></tr>';
@@ -2769,6 +2956,12 @@ function categoryLabel(category) {
         "total_accounts": "Total Accounts",
         "untouched": "Untouched Accounts",
         "lost_no_followup": "Lost - No Follow-up",
+        "focused": "Focused Accounts",
+        "focused_touched": "Focused - Touched in Last " + TOUCHED_WINDOW_DAYS + " Days",
+        "focused_demo": "Focused - Demo Done",
+        "focused_untouched": "Focused - Not Touched " + TOUCHED_WINDOW_DAYS + "+ Days",
+        "focused_won": "Focused - Closed Won",
+        "focused_lost": "Focused - Closed Lost",
         "touched": "Touched Accounts",
         "aging:last_30": "Touched in Last 30 Days",
         "aging:days_31_60": "Touched 31-60 Days Ago",
@@ -2796,7 +2989,8 @@ function categoryLabel(category) {
 
 
 var CARD_DETAIL_CATEGORIES = ["target", "achieved", "payment_received", "payment_pending",
-    "total_accounts", "untouched", "touched", "lost_no_followup", "current_pipeline"];
+    "total_accounts", "untouched", "touched", "lost_no_followup", "current_pipeline",
+    "focused", "focused_touched", "focused_demo", "focused_untouched", "focused_won", "focused_lost"];
 
 
 function openDrilldown(scope, category) {
@@ -2933,7 +3127,7 @@ async function runCardDetail(scope, category) {
     }
 
     // ---- Deal cards ----
-    if (CARD_LOGIC[category]) {
+    if (CARD_LOGIC[category] && category !== "current_pipeline_placeholder") {
 
         var logic = CARD_LOGIC[category];
         var rows = [];
@@ -3012,10 +3206,24 @@ async function runCardDetail(scope, category) {
     var rowsA = [];
     var ebTotal = 0;
     var showGist = accounts.some(function(a) { return a.gistNames.length; });
+    var isFocusCard = category.indexOf("focused") === 0;
+    var focusStatus = isFocusCard ? computeAccountDealStatus(live, selectedQuarter, gistSelection) : {};
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - TOUCHED_WINDOW_DAYS);
 
     accounts.forEach(function(account) {
 
         var lastCall = latest[account.id];
+        var recent = !!lastCall && lastCall >= cutoff;
+        var hasDemo = accountHasDemo(live, account.id, selectedQuarter);
+        var fs = focusStatus[account.id] || {};
+
+        if (isFocusCard && !account.focused) return;
+        if (category === "focused_touched" && !recent) return;
+        if (category === "focused_untouched" && recent) return;
+        if (category === "focused_demo" && !hasDemo) return;
+        if (category === "focused_won" && !fs.won) return;
+        if (category === "focused_lost" && !fs.lost) return;
         if (category === "lost_no_followup" && !account.lostOnly) return;
         if (category === "untouched" && (lastCall || account.lostOnly)) return;
         if (category === "touched" && (!lastCall || account.lostOnly)) return;
@@ -3038,9 +3246,15 @@ async function runCardDetail(scope, category) {
             status = age === "last_30" ? "Touched, last 30 days" : (age === "days_31_60" ? "Touched, 31-60 days" : "Touched, 60+ days");
         }
 
+        var demoEntry = live.demoQuarters[account.id];
+
         rowsA.push({
             sortKey: account.name.toLowerCase(),
             account: escapeHtml(account.name),
+            focused: account.focused ? "Yes" : "No",
+            focusSet: account.setA && account.setB ? "A + B" : account.setA ? "A (bucket)" : account.setB ? "B (date)" : "—",
+            focusReason: escapeHtml(account.focusReason || ""),
+            demoDate: demoEntry && demoEntry.last ? fmtDate(demoEntry.last.toISOString().slice(0, 10)) : "—",
             owner: escapeHtml(account.ownerName),
             gist: escapeHtml(account.gistNames.join(", ") || "—"),
             bucket: escapeHtml(account.bucket),
@@ -3061,8 +3275,13 @@ async function runCardDetail(scope, category) {
 
     var colsA = [
         { key: "account", title: "Account", left: true },
-        { key: "owner", title: "Owner", left: true, logic: true }
+        { key: "owner", title: "Owner", left: true, logic: !isFocusCard }
     ];
+    if (isFocusCard) {
+        colsA.push({ key: "focusSet", title: "Set", logic: true });
+        colsA.push({ key: "focusReason", title: "Why focused", left: true, logic: true });
+        colsA.push({ key: "demoDate", title: "Last Demo", logic: category === "focused_demo" });
+    }
     if (showGist) colsA.push({ key: "gist", title: "Gist Account Owner", left: true });
     colsA = colsA.concat([
         { key: "newDeals", title: "Deal Type New Deals", logic: true },
@@ -3079,6 +3298,15 @@ async function runCardDetail(scope, category) {
     ]);
 
     var ruleA = {
+        focused: (FOCUSED_MODE === "intersection" ? "accounts in BOTH sets" : "unique accounts of two sets") + ": " +
+            "(A) every account in Bucket " + FOCUSED_BUCKET_PREFIXES.join("/") + " (not 4, not blank), whatever its deals; " +
+            "(B) accounts with a Deal Type New deal of " + FY_FILTER + " whose Expected Order Date is inside " +
+            FY_LONG_LABEL + " and whose Product isn't " + EXCLUDED_PRODUCTS.join(" / "),
+        focused_touched: "focused accounts with a call by the owner (on the account or its deals) in the last " + TOUCHED_WINDOW_DAYS + " days",
+        focused_untouched: "focused accounts with no call by the owner in the last " + TOUCHED_WINDOW_DAYS + " days",
+        focused_demo: "focused accounts with a record in the Demo module dated inside the selected period",
+        focused_won: "focused accounts with a Closed Won deal (Actual Order Date in the selected period)",
+        focused_lost: "focused accounts with a Closed Lost deal (Closing Date in the selected period)",
         total_accounts: "accounts of the selected owner with at least one Deal Type New deal",
         untouched: "active accounts (not Lost - No Follow-up) with no call by the account owner on the account or its deals",
         touched: "active accounts (not Lost - No Follow-up) with a call by the account owner on the account or its deals",
@@ -3208,6 +3436,7 @@ async function runDrilldown(scope, category) {
         else if (kind === "bucket" && account.bucket === decodeURIComponent(parts[1])) {
             var ds = dealStatus[account.id] || {};
             if (parts[2] === "Total") isMatch = true;
+            else if (parts[2] === "focused") isMatch = !!account.focused;
             else if (parts[2] === "open_deals") isMatch = !!ds.open;
             else if (parts[2] === "closed_lost") isMatch = !!ds.lost;
             else if (parts[2] === "closed_won") isMatch = !!ds.won;
