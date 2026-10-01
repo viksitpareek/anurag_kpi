@@ -228,7 +228,7 @@
    ========================================================= */
 
 /* Financial year: 1 April FY_START_YEAR to 31 March FY_START_YEAR + 1 */
-var WIDGET_VERSION = "v8 - 24 Sep 2026 - bucket match fixed";
+var WIDGET_VERSION = "v9 - USD accounts converted, Quarter x Plan = open deals";
 
 var FY_START_YEAR = 2026;
 var FY_FILTER = FY_START_YEAR + "-" + (FY_START_YEAR + 1);   // Deal Year (Year2) value
@@ -272,6 +272,14 @@ var DETAIL_FIELDS = {
 };
 
 var AMOUNT_UNIT = "auto";      // "rupees", "lakh" or "auto"
+
+/* International accounts (Accounts > Billing Region) hold their deal amounts in USD */
+var INTERNATIONAL_REGION_VALUES = ["international"];
+var USD_TO_INR = 88;           // update when the rate changes
+var ACCOUNT_REGION_FIELD = "";  // "" = auto-detect the "Billing Region" field
+
+/* Closed Won and Closed Lost deals are left out of Quarter x Plan expected business */
+var EXCLUDE_CLOSED_FROM_EXPECTED = true;
 
 /* Knimbus Default is left out of: the Current Pipeline card, Quarter x Plan, and the Stage-wise funnel */
 var EXCLUDED_PRODUCTS = ["Knimbus Default"];
@@ -1003,6 +1011,12 @@ function buildLiveData(dealMeta, accountMeta, deals, accounts, demoResult) {
 
     var gistHqAccounts = accounts.filter(function(a) { return isGistHqName(ddLookupName(a.Owner, "")); });
     fieldInfo.gist = chooseGistField(accountOptions, gistHqAccounts.length ? gistHqAccounts : accounts);
+    fieldInfo.region = ACCOUNT_REGION_FIELD
+        ? describeField(ACCOUNT_REGION_FIELD, accountOptions, true)
+        : (pickByTiers(accountOptions, [
+              function(o) { return /billing region/.test(optionText(o)); },
+              function(o) { return /\bregion\b/.test(optionText(o)); }
+          ], function(api) { return countNonEmpty(accounts, api); }) || describeField("Billing_Region", accountOptions, false));
 
     // Extra columns for the top-card detail popups (Deals first, then Accounts)
     fieldInfo.ouCode = chooseDetailField(DETAIL_FIELDS.ouCode, [/\bou code\b/, /\bou\b/], dealOptions, deals, accountOptions, accounts);
@@ -1048,6 +1062,10 @@ function buildLiveData(dealMeta, accountMeta, deals, accounts, demoResult) {
             bucket: fieldValueText(a.Bucket_Type) || "No Bucket",
             gistNames: gistNames,
             inScope: !!scopedAccountIds[String(a.id)],
+            region: fieldValueText(a[fieldInfo.region.api]),
+            isInternational: INTERNATIONAL_REGION_VALUES.some(function(v) {
+                return fieldValueText(a[fieldInfo.region.api]).trim().toLowerCase() === String(v).trim().toLowerCase();
+            }),
             raw: a
         };
 
@@ -1114,6 +1132,7 @@ function buildLiveData(dealMeta, accountMeta, deals, accounts, demoResult) {
         demoFields: demoInfo.fields,
         demoCount: demoInfo.count,
         demoQuarters: demoInfo.byAccount,
+        internationalCount: Object.keys(accountsById).filter(function(k) { return accountsById[k].isInternational; }).length,
         bucketValues: Object.keys(accounts.reduce(function(acc, a) {
             acc[fieldValueText(a.Bucket_Type) || "(blank)"] = true; return acc;
         }, {})).sort(),
@@ -1382,6 +1401,9 @@ function dealContext(deal, live, selectedQuarter, gistSelection, cardMode) {
     var accId = ddLookupId(deal.Account_Name);
     if (!accId) return null;
 
+    var account = live.accountsById[accId] || null;
+    if (!accountMatchesGist(account, gistSelection)) return null;
+
     var dateQuarters = dealDateQuarters(deal);
     var quarter = stageDateQuarter(deal, dateQuarters);
     var inWindow = !!quarter;
@@ -1389,9 +1411,6 @@ function dealContext(deal, live, selectedQuarter, gistSelection, cardMode) {
 
     var allQuarters = !selectedQuarter || selectedQuarter === ALL_QUARTERS;
     if (!cardMode && !allQuarters && quarter !== selectedQuarter) return null;
-
-    var account = live.accountsById[accId] || null;
-    if (!accountMatchesGist(account, gistSelection)) return null;
 
     return {
         accId: accId,
@@ -1402,8 +1421,9 @@ function dealContext(deal, live, selectedQuarter, gistSelection, cardMode) {
         dateQuarters: dateQuarters,
         selectedQuarter: allQuarters ? ALL_QUARTERS : selectedQuarter,
         stage: String(deal.Stage || "").trim() || "Unknown",
-        amount: dealAmountLakh(deal),
-        paymentAmount: paymentAmountLakh(deal),
+        amount: dealAmountLakh(deal) * (account && account.isInternational ? USD_TO_INR : 1),
+        paymentAmount: paymentAmountLakh(deal) * (account && account.isInternational ? USD_TO_INR : 1),
+        inUsd: !!(account && account.isInternational),
         plan: dealPlanName(deal),
         products: fieldValueList(deal[fieldInfo.product.api]),
         dealOwnerId: ddLookupId(deal.Owner),
@@ -1495,8 +1515,11 @@ function matchesAccountOwner(ctx, ownerSet) {
 }
 
 
+/* Quarter x Plan counts open business only: Closed Won and Closed Lost are left out */
 function countsAsExpected(ctx) {
-    return !(EXCLUDE_LOST_FROM_EXPECTED && isClosedLostStage(ctx.stage));
+    if (EXCLUDE_LOST_FROM_EXPECTED && isClosedLostStage(ctx.stage)) return false;
+    if (EXCLUDE_CLOSED_FROM_EXPECTED && (isClosedWonStage(ctx.stage) || isClosedLostStage(ctx.stage))) return false;
+    return true;
 }
 
 
@@ -2578,7 +2601,11 @@ function dataSourceNotes(m, live, missingOwners) {
         ', Payment Received Amount = ' + escapeHtml(f.paymentAmount.api) + ' (read as ' + paymentAmountUnitInUse + ')' +
         ', Closing Date = ' + escapeHtml(f.closingDate.api) +
         '), Year = ' + escapeHtml(f.year.label) + ' (' + escapeHtml(f.year.api) +
-        '), Gist Account Owner = ' + escapeHtml(f.gist.label) + ' (' + escapeHtml(f.gist.api) + ').</div>';
+        '), Gist Account Owner = ' + escapeHtml(f.gist.label) + ' (' + escapeHtml(f.gist.api) +
+        '), Billing Region = ' + escapeHtml(f.region.api) + '.</div>' +
+        '<div class="data-source">' + live.internationalCount + ' accounts have Billing Region "' +
+        escapeHtml(INTERNATIONAL_REGION_VALUES.join(" / ")) + '"; their deal amounts are read as USD and multiplied by ' +
+        USD_TO_INR + ' to show rupees. Quarter x Plan shows open business only - Closed Won and Closed Lost are not in it.</div>';
 
     var warnings = [];
 
@@ -2612,6 +2639,10 @@ function dataSourceNotes(m, live, missingOwners) {
     if (!/expected ?business/i.test(f.amount.label + " " + f.amount.api.replace(/_/g, " "))) {
         warnings.push('No "Expected Business" field was found on Deals, so amounts use "' + escapeHtml(f.amount.label) +
             '". Set <code>DEAL_FIELDS.amount</code> to the Expected Business API name.');
+    }
+    if (!f.region.found) {
+        warnings.push('No "Billing Region" field was found on Accounts, so international deals are not converted to rupees. ' +
+            'Set <code>ACCOUNT_REGION_FIELD</code> to its API name.');
     }
     if (!f.product.found) {
         warnings.push('No Product field was found, so Knimbus Default deals cannot be left out. Set ' +
@@ -3150,7 +3181,7 @@ async function runCardDetail(scope, category) {
                 accountOwner: escapeHtml(ctx.account ? ctx.account.ownerName : "—"),
                 stage: escapeHtml(ctx.stage),
                 logicDate: fmtDate(fieldValueText(deal[fieldInfo[logic.dateKey].api])) + " (" + (ctx.dateQuarters[logic.quarterKey] || "—") + ")",
-                expectedBusiness: formatLakh(ctx.amount),
+                expectedBusiness: formatLakh(ctx.amount) + (ctx.inUsd ? ' <span style="color:#b45309;">(USD x ' + USD_TO_INR + ')</span>' : ''),
                 paymentReceivedAmount: formatLakh(ctx.paymentAmount),
                 paymentReceivingDate: fmtDate(fieldValueText(deal[fieldInfo.paymentDate.api])),
                 ouCode: detailValue(fieldInfo.ouCode, deal, ctx.account),
